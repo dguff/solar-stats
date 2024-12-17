@@ -45,6 +45,9 @@
 // m-stats libs
 #include "MSObject.h"
 
+// Prob3++
+#include "NeutrinoPropagator.h"
+
 namespace mst {
 
 class MSPDFBuilderTHn : public MSObject
@@ -60,11 +63,25 @@ class MSPDFBuilderTHn : public MSObject
    //! Pair for hist map
    using HistMap  = std::map <const std::string, THn*>;
 
+   //! Pair of response matrices
+   using RespMatrixPair = std::pair<const std::string, THn*>;
+   //! Map of response matrices
+   using RespMatrixMap  = std::map <const std::string, THn*>;
+
    //! register histogram 
    void RegisterHist(THn*);
 
+   //! register response matrix
+   void RegisterResponseMatrix(THn*);
+
    //! Add scaled histogram to tmp PDF
    void AddHistToPDF(const std::string& histName, double scaling = 1);
+
+   //! Set the neutrino propagator
+   void SetNeutrinoPropagator(NeutrinoPropagator* np) { fNeutrinoPropagator = np; }
+
+   //! Get the neutrino propagator
+   NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
 
    //! Set Seed
    void SetSeed(unsigned int seed) { delete fRnd; fRnd = new TRandom3(seed); }
@@ -79,10 +96,17 @@ class MSPDFBuilderTHn : public MSObject
    THn* GetMCRealizaton(int ctsNum, bool addPoissonFluctuation = false);
 
  protected:
-   // Map of histograms
-   HistMap* fHistMap {nullptr};
-   THn*     fTmpPDF  {nullptr};
-   TRandom* fRnd     {nullptr};
+   //! Map of histograms
+   HistMap* fHistMap                        {nullptr};
+   //! Map of response matrices
+   RespMatrixMap* fRespMatrixMap            {nullptr};
+   //! Temporary PDF
+   THn*     fTmpPDF                         {nullptr};
+   //! Pseudo-random number generator
+   TRandom* fRnd                            {nullptr};
+   //! Neutrino eigenstate propagator
+   NeutrinoPropagator* fNeutrinoPropagator  {nullptr};
+   
 };
 
 } // namespace mst

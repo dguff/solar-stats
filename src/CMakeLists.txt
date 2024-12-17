@@ -36,11 +36,13 @@ endif()
 # Find dependencies (ROOT, RapidJSON)
 find_package(ROOT REQUIRED COMPONENTS RIO Core)
 find_package(RapidJSON REQUIRED)
+find_package(Prob3plusplus REQUIRED)
 
 include(${ROOT_USE_FILE})
 include_directories(
   ${RapidJSON_INCLUDE_DIR}/..
   ${ROOT_INCLUDE_DIRS}
+  ${Prob3plusplus_INCLUDE_DIR}
 )
 
 #----------------------------------------------------------------------------
