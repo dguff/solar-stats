@@ -5,7 +5,7 @@
 ######################################################################
 
 # Add the shared library
-add_library(sstats-hist-fit SHARED ${SSTATS_HISTFIT_DIR}/MSHistFit.cxx)
+add_library(sstats-hist-fit SHARED ${SSTATS_HISTFIT_DIR}/MSHistFit.hpp)
 target_link_libraries(sstats-hist-fit PRIVATE ${ROOT_LIBRARIES} sstats-core)
 target_include_directories(sstats-hist-fit
   PUBLIC

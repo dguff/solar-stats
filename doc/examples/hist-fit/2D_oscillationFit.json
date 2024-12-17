@@ -1,0 +1,67 @@
+{
+  "fittingModel": {
+    "oscillation" : {
+      "parameters" : {
+        "dm21"   : { "value": 7.5, "range": [7.4 ,  7.6], "fixed": false, "fitStep": 0.01, "refVal": 7.5},
+        "dm31"   : { "value": 2.5, "range": [2.4 ,  2.6], "fixed": true , "fitStep": 0.01, "refVal": 2.5},
+        "theta23": { "value": 0.8, "range": [0.7 ,  0.9], "fixed": false, "fitStep": 0.01, "refVal": 0.8},
+        "theta13": { "value": 0.1, "range": [0.05, 0.15], "fixed": false, "fitStep": 0.01, "refVal": 0.1},
+        "theta12": { "value": 0.2, "range": [0.1 ,  0.3], "fixed": false, "fitStep": 0.01, "refVal": 0.2}
+      }
+    },
+    "dataSets": {
+      "DSA": {
+        "exposure": 1000,
+        "detectorResponse" : {
+          "nueCCresponseMatrix": ["tmp_2D_responseMatrix.root","responseMatrix"]
+        },
+        "nadirExposurePDF" : {
+          "nadir_surf" : ["nadir_surf.root","nadir_surf"]
+        },
+        "components" : {
+          "h1":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h1"], "injVal":10,  "color":632},
+          "h2":   { "global":false, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h2"], "injVal":10,  "color":633},
+          "h3":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h3"], "injVal":10,  "color":634},
+          "b8":   { 
+            "global": false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":12, "pdf":["tmp_2D_pdfs.root","b8"], "injVal":12, "color":635, 
+            "oscillation" : true, "responseMatrix" : "nueCCresponseMatrix"
+          }
+        },
+        "projectOnAxis": [0,1],
+        "axis": { 
+          "0": {"range": [0,10], "rebin":  1 },
+          "1": {"range": [0,10], "rebin":  1 }
+        },
+        "normalizePDFInUserRange": false 
+      },
+      "DSB": {
+        "exposure":  500,
+        "components" : {
+          "h1":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h1"], "injVal":10,  "color":632},
+          "h2":   { "global":false, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h2"], "injVal":10,  "color":633},
+          "h3":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h3"], "injVal":10,  "color":634}
+        },
+        "projectOnAxis": [0,1],
+        "axis": { 
+          "0": {"range": [0,10], "rebin":  1 },
+          "1": {"range": [0,10], "rebin":  1 }
+        },
+        "normalizePDFInUserRange": false 
+      }
+    },
+    "pulls": {
+        "h1"      : { "type": "gauss", "centroid": 4.0, "sigma": 0.10}, 
+        "theta13" : { "type": "gauss", "centroid": 0.1, "sigma": 0.01}
+    }
+  },
+  "MinimizerSteps": { 
+    "0":  {"method": "SIMPLEX", "resetMinuit":  true, "maxCall": 1e4, "tollerance": 1e-1, "verbosity": -1},
+    "1":  {"method":"MINIMIZE", "resetMinuit": false, "maxCall": 1e8, "tollerance": 1e-1, "verbosity": -1}
+  },
+  "MC": { 
+    "realizations":  1e3,
+    "seed": 1,
+    "enablePoissonFluctuations": false,
+    "outputFile": "tmp_2D_fitMultiSets.root"
+  }
+}

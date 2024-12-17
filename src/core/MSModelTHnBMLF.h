@@ -33,7 +33,7 @@
 #define MST_MSModelTHnBMLF_H
 
 // ROOT libs
-#include <THnBase.h>
+#include "THnBase.h"
 
 // m-stats libs
 #include "MSModel.h"

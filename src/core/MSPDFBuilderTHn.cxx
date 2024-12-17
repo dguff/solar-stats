@@ -56,6 +56,16 @@ void MSPDFBuilderTHn::RegisterHist(THn* hist) {
   return;
 }
 
+void MSPDFBuilderTHn::RegisterResponseMatrix(THn* hist) {
+   // Check if an hist with the same name was already loaded
+  if (fRespMatrixMap->find(hist->GetName()) != fRespMatrixMap->end()) {
+    std::cerr << "error: Response matrix already loaded\n";
+    return;
+  }
+
+  fRespMatrixMap->insert( RespMatrixPair( hist->GetName(), hist) );
+  return;
+}
 
 void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling) {
    // find hist by name
@@ -84,7 +94,6 @@ THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) {
    ResetPDF();
    return clone;
 }
-
 
 THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
    // set internal random number generator if set

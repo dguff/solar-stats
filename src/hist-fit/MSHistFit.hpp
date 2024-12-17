@@ -2,33 +2,33 @@
 #define MST_MSHistFit_H
 
 // c/c++ libs
-#include <csignal>
-#include <cstdlib> 
-#include <map>
-#include <sstream>
-#include <fstream>
+#include "csignal"
+#include "cstdlib" 
+#include "map"
+#include "sstream"
+#include "fstream"
 
 // ROOT libs
-#include <TBranch.h>
-#include <TCanvas.h>
-#include <TFile.h>
-#include <TGraph.h>
-#include <TH1D.h>
-#include <THn.h>
-#include <TROOT.h>
-#include <TStyle.h>
-#include <TTree.h>
+#include "TBranch.h"
+#include "TCanvas.h"
+#include "TFile.h"
+#include "TGraph.h"
+#include "TH1D.h"
+#include "THn.h"
+#include "TROOT.h"
+#include "TStyle.h"
+#include "TTree.h"
 
 // rapidjson's DOM-style API
-#include "../rapidjson/document.h"
-#include "../rapidjson/istreamwrapper.h"
+#include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
 
 // m-stats libs
-#include <MSPDFBuilderTHn.h>
-#include <MSModelTHnBMLF.h>
-#include <MSModelPulls.h>
-#include <MSMinimizer.h>
-#include <MSTHnHandler.h>
+#include "MSPDFBuilderTHn.h"
+#include "MSModelTHnBMLF.h"
+#include "MSModelPulls.h"
+#include "MSMinimizer.h"
+#include "MSTHnHandler.h"
 
 
 using namespace std;
@@ -38,7 +38,7 @@ namespace mst {
 /* 
  * Load and check integrity of the json config file
  */
-rapidjson::Document LoadConfig (const string& configFileName, bool verbose = false) {
+inline rapidjson::Document LoadConfig (const string& configFileName, bool verbose = false) {
 
    std::ifstream inputStream (configFileName);
    rapidjson::IStreamWrapper inputStreamWrapper (inputStream);
@@ -108,13 +108,21 @@ rapidjson::Document LoadConfig (const string& configFileName, bool verbose = fal
       return;
    };
 
-   isMemberCorrect(json,"fittingModel", "Object");                             // json/fittingModel                                                 
+   isMemberCorrect(json,"fittingModel", "Object");                             // json/fittingModel
    isMemberCorrect(json["fittingModel"], "dataSets", "Object");                // json/fittingModel/dataSets
    for (const auto& dataSet : json["fittingModel"]["dataSets"].GetObject()) {  // json/fittingModel/dataSets/*
       if (verbose) cout << "info: checking dataSet "                           //
                         << dataSet.name.GetString() << endl;                   //
       isMemberCorrect(dataSet.value, "exposure", "Number");                    // json/fittingModel/dataSets/*/exposure
       isMemberCorrect(dataSet.value, "components", "Object");                  // json/fittingModel/dataSets/*/components
+      if (dataSet.value.HasMember("detectorResponse")) {                       // optional block:
+         isMemberCorrect(dataSet.value, "detectorResponse",
+             "Array", "String", 2);                                            // json/fittingModel/dataSets/*/detectorResponse
+      }                                                                        
+      if (dataSet.value.HasMember("nadirExposurePDF")) {                       // optional block:
+         isMemberCorrect(dataSet.value, "nadirExposurePDF", 
+             "Array", "String", 2);         // json/fittingModel/dataSets/*/nadirExposurePDF
+      }
       for (const auto& component : dataSet.value["components"].GetObject()) {  // json/fittingModel/dataSets/*/components/*
          if (verbose) cout << "info: checking component "                      //
                            << component.name.GetString() << endl;              //
@@ -147,7 +155,19 @@ rapidjson::Document LoadConfig (const string& configFileName, bool verbose = fal
          isMemberCorrect(pull.value, "centroid", "Number");                    // json/pulls/*/centroid
          isMemberCorrect(pull.value, "sigma", "Number");                       // json/pulls/*/sigma
       }                                                                        //
-   }                                                                           //
+   }
+   if (json["fittingModel"].HasMember("oscillation")) {
+      isMemberCorrect(json["fittingModel"], "oscillation", "Object");          // json/fittingModel/oscillation
+      const auto& joscillation = json["fittingModel"]["oscillation"];          //
+      isMemberCorrect(joscillation, "parameters", "Object");                   // json/fittingModel/oscillation/parameters
+      for (const auto& par : joscillation["parameters"].GetObject()) {
+        isMemberCorrect(par.value, "value", "Number");                         // json/fittingModel/oscillation/*/parameters/*/value
+        isMemberCorrect(par.value, "range", "Array", "Number", 2);             // json/fittingModel/oscillation/*/parameters/*/range[]
+        isMemberCorrect(par.value, "fitStep", "Number");                       // json/fittingModel/oscillation/*/parameters/*/fitStep
+        isMemberCorrect(par.value, "fixed", "Bool");                           // json/fittingModel/oscillation/*/parameters/*/fixed
+        isMemberCorrect(par.value, "refVal", "Number");                        // json/fittingModel/oscillation/*/parameters/*/refVal
+      }
+   }
    isMemberCorrect(json, "MinimizerSteps", "Object");                          // json/MinimizerSteps
    for (const auto& step : json["MinimizerSteps"].GetObject()) {               // json/MinimizerSteps/*
          if (verbose) cout << "info: checking step "                           //  
@@ -173,7 +193,7 @@ rapidjson::Document LoadConfig (const string& configFileName, bool verbose = fal
  * Initialize all analysis structures, i.e.: the minimizer, the PDFBuilder and
  * the statistical models composing the likelihood. 
  */
-MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,  
+inline MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,  
                                  const std::string& datafileName) {
 
    // initialize fitter
@@ -314,7 +334,7 @@ MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,
 /*
  * Create data sets and automatically associate it to the models
  */
-bool SetDataSetFromMC (const rapidjson::Document& json, MSMinimizer* fitter) {
+inline bool SetDataSetFromMC (const rapidjson::Document& json, MSMinimizer* fitter) {
 
    // loop over the models and create a new data set for each of them
    for (const auto& model: *fitter->GetModels()) {
@@ -348,7 +368,7 @@ bool SetDataSetFromMC (const rapidjson::Document& json, MSMinimizer* fitter) {
 /*
  * Minimization of the likelihood
  */
-bool Minimize (const rapidjson::Document& json, MSMinimizer* fitter) {
+inline bool Minimize (const rapidjson::Document& json, MSMinimizer* fitter) {
 
    // Take Minuit calls from config file in the proper order
    for (const auto& step : json["MinimizerSteps"].GetObject()) {
@@ -369,7 +389,7 @@ bool Minimize (const rapidjson::Document& json, MSMinimizer* fitter) {
 /*
  * General routine for plotting the results
  */
-TCanvas* GetCanvasFit (const rapidjson::Document& json, const MSMinimizer* fitter) {
+inline TCanvas* GetCanvasFit (const rapidjson::Document& json, const MSMinimizer* fitter) {
 
    // Retrieve the canvas and define number of canvases
    int nMaxDim = 0;
@@ -468,7 +488,7 @@ TCanvas* GetCanvasFit (const rapidjson::Document& json, const MSMinimizer* fitte
 /*
  * Build profile likelihood scan for a specific parameter
  */
-TGraph* Profile (const rapidjson::Document& json, MSMinimizer* fitter, 
+inline TGraph* Profile (const rapidjson::Document& json, MSMinimizer* fitter, 
       const string& parName, const double NLL, const int nPts) {
 
    // retrieve parameter of interest (poi) from the fitter
@@ -578,7 +598,7 @@ TGraph* Profile (const rapidjson::Document& json, MSMinimizer* fitter,
  * Build Profile for each parameter of the fit
  */
 
-TCanvas* GetCanvasProfiles (const rapidjson::Document& json, MSMinimizer* fitter, 
+inline TCanvas* GetCanvasProfiles (const rapidjson::Document& json, MSMinimizer* fitter, 
       const double NLL, const int nPts) {
 
    // retrieve the canvas or initialize it

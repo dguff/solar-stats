@@ -35,19 +35,19 @@
 #include <string>
 
 // ROOT libs
-#include <TApplication.h>
-#include <TROOT.h>
-#include <TObject.h>
+#include "TApplication.h"
+#include "TROOT.h"
+#include "TObject.h"
 
 // m-stats libs
-#include <MSPDFBuilderTHn.h>
-#include <MSModelTHnBMLF.h>
-#include <MSModelPulls.h>
-#include <MSMinimizer.h>
-#include "MSHistFit.cxx"
+#include "MSPDFBuilderTHn.h"
+#include "MSModelTHnBMLF.h"
+#include "MSModelPulls.h"
+#include "MSMinimizer.h"
+#include "MSHistFit.hpp"
 
 // rapidjson's DOM-style API
-#include "../rapidjson/document.h"   
+#include "rapidjson/document.h"   
 
 using namespace std;
 
@@ -156,11 +156,11 @@ int main(int argc, char** argv)
                              gProfilePts)->Write(0, TObject::kOverwrite);
       ofile.Close();
       theApp.Run();
-
+   }
    /*
     * Perform fits in batch from MC generated data sets or external data sets
     */
-   } else if (gOperationMode == EOperationMode::kBatchFit) {
+   else if (gOperationMode == EOperationMode::kBatchFit) {
       gROOT->SetBatch();
 
       auto fitter = mst::InitializeAnalysis(json, gInputFileName);
