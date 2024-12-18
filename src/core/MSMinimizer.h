@@ -36,6 +36,9 @@
 #include "MSModel.h"
 #include "MSObject.h"
 
+// Prob3++
+#include "NeutrinoPropagator.h"
+
 namespace mst {
 
 class MSMinimizer : public MSObject
@@ -95,10 +98,13 @@ class MSMinimizer : public MSObject
       //! Get the pointer to minuit
       TMinuit* GetMinuit() const { return fMinuit;}
 
+      //! Get the pointer to the neutrino propagator
+      NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
+
       //! Sync parameter info from the model to minuit
       //! Optionally, do not reset the starting values of the fit parameters and 
       //! leave the  values corresponding to the best fit point found in the 
-      //! previous interatoin
+      //! previous interation
       void SyncFitParameters(bool resetFitStartValue  = true);
 
       //! Call the minimizer
@@ -154,6 +160,9 @@ class MSMinimizer : public MSObject
       int fMinuitErrorFlag {0};
       //! Number of times migrad returned an error flag
       int fNMinuitFails {0};
+
+      //! Pointer to the neutrino propagator
+      NeutrinoPropagator* fNeutrinoPropagator {nullptr};
 
       //! Maximum interations of minuit during minimization
       int fMinuitMaxCalls {2000};

@@ -20,14 +20,18 @@
 // m-stats libs
 #include "MSMinimizer.h"
 
+// Prob3++
+#include "BargerPropagator.h"
+
 namespace mst {
 
 MSMinimizer* MSMinimizer::global_pointer = 0;
 
 MSMinimizer::MSMinimizer(const std::string& name) : MSObject(name)
 {
-   fModelVector = new MSModelVector();
-   fLocalParMap = new MSParameterMap();
+   fModelVector        = new MSModelVector();
+   fLocalParMap        = new MSParameterMap();
+   fNeutrinoPropagator = new BargerPropagator(); 
 }
 
 MSMinimizer::~MSMinimizer()
@@ -41,6 +45,8 @@ MSMinimizer::~MSMinimizer()
       for (auto& it : *fLocalParMap) delete it.second;
       delete fLocalParMap;
    }
+
+   if (fNeutrinoPropagator) delete fNeutrinoPropagator;
 
    delete fMinuit;
 }
