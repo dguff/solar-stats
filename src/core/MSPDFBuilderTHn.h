@@ -39,13 +39,13 @@
 #include <string>
 
 // ROOT libs
-#include <THn.h>
-#include <TRandom3.h>
+#include "THn.h"
+#include "TRandom3.h"
 
 // m-stats libs
+#include "MSTHnPDF.h"
+#include "MSTHnHandler.h"
 #include "MSObject.h"
-
-// Prob3++
 #include "NeutrinoPropagator.h"
 
 namespace mst {
@@ -59,29 +59,28 @@ class MSPDFBuilderTHn : public MSObject
    virtual ~MSPDFBuilderTHn();
 
    //! Map of hists
-   using HistPair = std::pair<const std::string, THn*>;
+   using PDFPair = std::pair<const std::string, MSTHnPDF*>;
    //! Pair for hist map
-   using HistMap  = std::map <const std::string, THn*>;
+   using PDFMap  = std::map <const std::string, MSTHnPDF*>;
 
    //! Pair of response matrices
    using RespMatrixPair = std::pair<const std::string, THn*>;
    //! Map of response matrices
    using RespMatrixMap  = std::map <const std::string, THn*>;
 
-   //! register histogram 
-   void RegisterHist(THn*);
+   //! register PDF 
+   void RegisterPDF(THn*);
+   //! register PDF
+   void RegisterPDF(MSTHnPDF* pdf); 
+
+   //! register nadir pdf
+   void RegisterNadirPDF(TH1* pdf); 
 
    //! register response matrix
    void RegisterResponseMatrix(THn*);
 
    //! Add scaled histogram to tmp PDF
-   void AddHistToPDF(const std::string& histName, double scaling = 1);
-
-   //! Set the neutrino propagator
-   void SetNeutrinoPropagator(NeutrinoPropagator* np) { fNeutrinoPropagator = np; }
-
-   //! Get the neutrino propagator
-   NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
+   void AddHistToPDF(const std::string& histName, double scaling = 1, NeutrinoPropagator* propagator = nullptr);
 
    //! Set Seed
    void SetSeed(unsigned int seed) { delete fRnd; fRnd = new TRandom3(seed); }
@@ -95,18 +94,31 @@ class MSPDFBuilderTHn : public MSObject
    //! Get MC realization extracted by tmpPDF
    THn* GetMCRealizaton(int ctsNum, bool addPoissonFluctuation = false);
 
+   //! Get the response matrix
+   inline THn* GetResponseMatrix(const std::string& name) { return fRespMatrixMap->at(name); }
+
+   //! Get the hist handler
+   inline MSTHnHandler& GetHistHandler() { return fHandler; }
+
  protected:
    //! Map of histograms
-   HistMap* fHistMap                        {nullptr};
+   PDFMap* fPDFMap {nullptr};
    //! Map of response matrices
-   RespMatrixMap* fRespMatrixMap            {nullptr};
+   RespMatrixMap* fRespMatrixMap {nullptr};
+   //! Nadir Exposure PDF 
+   TH1D* fNadirPDF {nullptr};
+   //! Nadir Exposure PDF function
+   TF1* fNadirFun {nullptr};
    //! Temporary PDF
-   THn*     fTmpPDF                         {nullptr};
+   THn* fTmpPDF {nullptr};
    //! Pseudo-random number generator
-   TRandom* fRnd                            {nullptr};
-   //! Neutrino eigenstate propagator
-   NeutrinoPropagator* fNeutrinoPropagator  {nullptr};
-   
+   TRandom* fRnd {nullptr};
+   //! Hist handler
+   MSTHnHandler fHandler;
+
+   // Private methods
+   THn* CreateOscillogramHD(MSTHnPDF* pdf);
+   THn* ApplyResponseMatrix(MSTHnPDF* pdf); 
 };
 
 } // namespace mst

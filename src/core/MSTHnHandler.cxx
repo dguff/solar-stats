@@ -19,14 +19,59 @@
 #include <iostream>
 
 // ROOT libgs
-#include <TFile.h>
-#include <THnBase.h>
-#include <TH1.h>
+#include "TFile.h"
+#include "THnBase.h"
+#include "TH1.h"
+#include "TH2.h"
 
 // m-stats libs
 #include "MSTHnHandler.h"
 
 namespace mst {
+
+THn* MSTHnHandler::LoadHist( const std::string& fileName, 
+                             const std::string& histName, 
+                             const std::string& newHistName ) 
+{
+   // Get pointer of the file 
+   TFile inputFile(fileName.c_str(), "READ");
+   if(inputFile.IsOpen() == kFALSE) {
+      std::cerr << "error: input file not found\n";
+      exit(1);
+   }
+
+   // load new hist checking for the type
+   THn* outHist = nullptr;
+   TObject* hist = inputFile.Get(histName.c_str());
+   if (!hist) {
+      std::cerr << "error: hist " << histName << " not found in the file\n";
+      exit(1);
+   } else {
+      // Create local THn
+      if (dynamic_cast<THnBase*>(hist)) {
+         outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
+                   dynamic_cast<THnBase*>(hist));
+      } else if (dynamic_cast<TH2*>(hist)) {
+         outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
+                   dynamic_cast<TH2*>(hist));
+      } else if (dynamic_cast<TH1*>(hist)) {
+         outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
+                   dynamic_cast<TH1*>(hist));
+      }
+      else {
+         std::cerr << "error: hist " << newHistName << " is not of type THnBase or TH1\n";
+         exit(1);
+      }
+
+      delete hist;
+   }
+   inputFile.Close();
+
+   outHist->SetTitle(newHistName.c_str());
+   outHist->SetName(newHistName.c_str());
+
+   return outHist;
+}
 
 THn* MSTHnHandler::BuildHist(const std::string& fileName, 
                              const std::string& histName,
@@ -51,10 +96,14 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
       if (dynamic_cast<THnBase*>(hist)) {
          outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
                    dynamic_cast<THnBase*>(hist));
+      } else if (dynamic_cast<TH2*>(hist)) {
+         outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
+                   dynamic_cast<TH2*>(hist));
       } else if (dynamic_cast<TH1*>(hist)) {
          outHist = THn::CreateHn(newHistName.c_str(), newHistName.c_str(), 
                    dynamic_cast<TH1*>(hist));
-      } else {
+      }
+      else {
          std::cerr << "error: hist " << newHistName << " is not of type THnBase or TH1\n";
          exit(1);
       }
@@ -106,6 +155,16 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
             outHist->GetAxis(i)->SetRangeUser(fAxis[i].fMin,fAxis[i].fMax);
       }
    }
+   else { // set model of the THn
+     for (int idim = 0; idim < outHist->GetNdimensions(); idim++) {
+        axis aa;
+        aa.fMin = outHist->GetAxis(idim)->GetXmin();
+        aa.fMax = outHist->GetAxis(idim)->GetXmax();
+        aa.fNbins = outHist->GetAxis(idim)->GetNbins();
+
+        fAxis.push_back(aa);
+     }
+   }
 
    // Normalize 
    if (normalize) {
@@ -118,6 +177,26 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
 
   outHist->SetTitle(newHistName.c_str());
   outHist->SetName(newHistName.c_str());
+  return outHist;
+}
+
+THn* MSTHnHandler::CreateHn() {
+  if (fAxis.size() == 0) {
+    fprintf(stderr, "MSTHnHandler::CreateHn ERROR: axes template vector is empty.\n"); 
+    exit(EXIT_FAILURE);
+  }
+  std::vector<int>  nBins(fAxis.size());
+  std::vector<double> min(fAxis.size());
+  std::vector<double> max(fAxis.size());
+  int idim = 0; 
+  for (const auto& axis : fAxis) {
+     nBins.at(idim) = axis.fNbins;
+     min.at(idim) = axis.fMin;
+     max.at(idim) = axis.fMax;
+     idim++; 
+  }
+
+  THnD* outHist = new THnD("tmp", "tmp", fAxis.size(), nBins.data(), min.data(), max.data());
   return outHist;
 }
 

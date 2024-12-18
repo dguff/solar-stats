@@ -76,11 +76,18 @@ class MSTHnHandler : public MSObject
          fRespectUserRange = respectAxisUserRange;
       }
 
+      //! Load histogram from file, withour further manipulation
+      THn* LoadHist(const std::string& filename, 
+                    const std::string& histName, 
+                    const std::string& newHistName); 
+
       //! Load histogram from file, manipulate it and return a copy
       THn* BuildHist(const std::string& fileName, 
                      const std::string& histName,
                      const std::string& newHistName,
                      bool  normalize = false);
+
+      THn* CreateHn(); 
 
       //! Reset settings
       void Reset() { fProjectID.clear(); fAxis.clear(); fRespectUserRange = false; }
@@ -90,6 +97,7 @@ class MSTHnHandler : public MSObject
          bool   fSetRange = {false};
          double fMin      = {0.0};
          double fMax      = {0.0};
+         int    fNbins    = {0};
          int    fNgroup   = {1};
       };
       std::vector<int> fProjectID;

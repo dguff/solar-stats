@@ -17,10 +17,12 @@
 // c/c++ libs
 #include <iostream>
 
-// ROOT libgs
-#include <TFile.h>
-#include <THnBase.h>
-#include <TROOT.h>
+// ROOT libs
+#include "TFile.h"
+#include "THnBase.h"
+#include "TH1D.h"
+#include "TF1.h"
+#include "TROOT.h"
 
 // m-stats libs
 #include "MSPDFBuilderTHn.h"
@@ -29,30 +31,58 @@ namespace mst {
 
 MSPDFBuilderTHn::MSPDFBuilderTHn(const std::string& name): MSObject(name)
 {
-  fHistMap = new HistMap;
+  fPDFMap = new PDFMap;
+  fRespMatrixMap = new RespMatrixMap;
 }
 
 MSPDFBuilderTHn::~MSPDFBuilderTHn()
 {
-   if (fHistMap != nullptr) {
-      for (auto im : *fHistMap) delete im.second;
-      fHistMap->clear();
-      delete fHistMap;
-   }
+  if (fPDFMap != nullptr) {
+    for (auto& it : *fPDFMap) {
+      if (it.second) delete it.second;
+    }
+    fPDFMap->clear();
+    delete fPDFMap;
+  }
 
-   delete fTmpPDF;
-   delete fRnd;
+  if (fRespMatrixMap) {
+    for (auto& it : *fRespMatrixMap) {
+      if (it.second) delete it.second; 
+    }
+    fRespMatrixMap->clear();
+  }
+
+  if (fNadirPDF) delete fNadirPDF; 
+  if (fNadirFun) delete fNadirFun; 
+
+  delete fTmpPDF;
+  delete fRnd;
 }
 
-void MSPDFBuilderTHn::RegisterHist(THn* hist) {
+void MSPDFBuilderTHn::RegisterNadirPDF(TH1* pdf) {
+  fNadirPDF = dynamic_cast<TH1D*>(pdf); 
+  return;
+}
 
+void MSPDFBuilderTHn::RegisterPDF(THn* hist) {
    // Check if an hist with the same name was already loaded
-  if (fHistMap->find(hist->GetName()) != fHistMap->end()) {
+  if (fPDFMap->find(hist->GetName()) != fPDFMap->end()) {
     std::cerr << "error: PDF already loaded\n";
     return;
   }
 
-  fHistMap->insert( HistPair( hist->GetName(), hist));
+  fPDFMap->insert( PDFPair( hist->GetName(), new MSTHnPDF(hist->GetName(), hist)) );
+  return;
+}
+
+void MSPDFBuilderTHn::RegisterPDF(MSTHnPDF* pdf) {
+   // Check if an hist with the same name was already loaded
+  if (fPDFMap->find(pdf->GetName()) != fPDFMap->end()) {
+    std::cerr << "error: PDF already loaded\n";
+    return;
+  }
+
+  fPDFMap->insert( PDFPair( pdf->GetName(), pdf) );
   return;
 }
 
@@ -67,23 +97,37 @@ void MSPDFBuilderTHn::RegisterResponseMatrix(THn* hist) {
   return;
 }
 
-void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling) {
+void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, NeutrinoPropagator* propagator) {
    // find hist by name
-   HistMap::iterator im = fHistMap->find(histName);
-   if (im == fHistMap->end()) {
+   PDFMap::iterator im = fPDFMap->find(histName);
+   if (im == fPDFMap->end()) {
       std::cerr << "error: PDF not loaded\n";
       return;
    }
    // check if the temporary PDF exist already
    if (!fTmpPDF) {
-      fTmpPDF = (THn*) im->second->Clone();
+      fTmpPDF = fHandler.CreateHn();
       fTmpPDF->SetName("privatePDF");
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
    }
 
    // Add hist to pdf with scaling factor
-   fTmpPDF->Add(im->second, scaling);
+   THn* hn = nullptr; 
+   if (im->second->ApplyOscillation()) {
+      if (propagator == nullptr) {
+        fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator given\n");
+        exit(EXIT_FAILURE); 
+      } 
+      
+
+   }
+
+   if (im->second->GetRespMatrix()) {
+
+   }
+
+   fTmpPDF->Add(hn, scaling);
 }
 
 THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) { 
@@ -141,5 +185,9 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
    if (rndTmpCopy != nullptr) gRandom = rndTmpCopy;
    return realization;
 }
+
+THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf) {}
+
+THn* MSPDFBuilderTHn::ApplyResponseMatrix(MSTHnPDF* pdf) {}
 
 } // namespace mst

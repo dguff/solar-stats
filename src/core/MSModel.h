@@ -40,6 +40,9 @@
 #include "MSObject.h"
 #include "MSParameter.h"
 
+// Prob3++
+#include "NeutrinoPropagator.h"
+
 namespace mst {
 
 class MSModel : public MSObject
@@ -139,12 +142,19 @@ class MSModelT: public MSModel {
 
       //! Check consistency between PDF's and data set
       virtual bool AreInputHistsConsistent () = 0;
+   
+      //! Set the neutrino propagator
+      void SetNeutrinoPropagator(NeutrinoPropagator* prop) {fNeutrinoPropagator = prop;}
+      //! Get the neutrino propagator
+      NeutrinoPropagator* GetNeutrinoPropagator() const {return fNeutrinoPropagator;}
 
    protected:
       //! pointer to the data set 
       const TData* fDataSet {nullptr}; 
       //! Pointer to PDFBuilder
       TPDF* fPDFBuilder {nullptr};
+      //! Pointer to the Neutrino propagator (owned by the MSMinimizer)
+      NeutrinoPropagator* fNeutrinoPropagator {nullptr};
 };
 
 } // namespace mst
