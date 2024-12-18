@@ -2,49 +2,33 @@
   "fittingModel": {
     "oscillation" : {
       "parameters" : {
-        "dm21"   : { "value": 7.5, "range": [7.4 ,  7.6], "fixed": false, "fitStep": 0.01, "refVal": 7.5},
-        "dm31"   : { "value": 2.5, "range": [2.4 ,  2.6], "fixed": true , "fitStep": 0.01, "refVal": 2.5},
-        "theta23": { "value": 0.8, "range": [0.7 ,  0.9], "fixed": false, "fitStep": 0.01, "refVal": 0.8},
-        "theta13": { "value": 0.1, "range": [0.05, 0.15], "fixed": false, "fitStep": 0.01, "refVal": 0.1},
-        "theta12": { "value": 0.2, "range": [0.1 ,  0.3], "fixed": false, "fitStep": 0.01, "refVal": 0.2}
+        "dm21"   : {"global" : true, "value": 7.5, "range": [7.4 ,  7.6], "fixed": false, "fitStep": 0.01, "refVal": 7.5},
+        "dm31"   : {"global" : true, "value": 2.5, "range": [2.4 ,  2.6], "fixed": true , "fitStep": 0.01, "refVal": 2.5},
+        "theta23": {"global" : true, "value": 0.8, "range": [0.7 ,  0.9], "fixed": false, "fitStep": 0.01, "refVal": 0.8},
+        "theta13": {"global" : true, "value": 0.1, "range": [0.05, 0.15], "fixed": false, "fitStep": 0.01, "refVal": 0.1},
+        "theta12": {"global" : true, "value": 0.2, "range": [0.1 ,  0.3], "fixed": false, "fitStep": 0.01, "refVal": 0.2}
       }
     },
     "dataSets": {
-      "DSA": {
+      "DUNE": {
         "exposure": 1000,
         "detectorResponse" : {
-          "nueCCresponseMatrix": ["tmp_2D_responseMatrix.root","responseMatrix"]
+          "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
         },
         "nadirExposurePDF" : {
-          "nadir_surf" : ["nadir_surf.root","nadir_surf"]
+          "nadir_surf" : {"pdf" : ["nadir.root","cos_nadir"]}
         },
         "components" : {
-          "h1":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h1"], "injVal":10,  "color":632},
-          "h2":   { "global":false, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h2"], "injVal":10,  "color":633},
-          "h3":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h3"], "injVal":10,  "color":634},
+          "neutron":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":1000, "pdf":["background_pdf.root","neutron"], "injVal":10,  "color":632},
           "b8":   { 
-            "global": false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":12, "pdf":["tmp_2D_pdfs.root","b8"], "injVal":12, "color":635, 
+            "global": false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":60, "pdf":["boron_pdf.root","hb8"], "injVal":12, "color":635, 
             "oscillation" : true, "responseMatrix" : "nueCCresponseMatrix"
           }
         },
         "projectOnAxis": [0,1],
         "axis": { 
-          "0": {"range": [0,10], "rebin":  1 },
-          "1": {"range": [0,10], "rebin":  1 }
-        },
-        "normalizePDFInUserRange": false 
-      },
-      "DSB": {
-        "exposure":  500,
-        "components" : {
-          "h1":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h1"], "injVal":10,  "color":632},
-          "h2":   { "global":false, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h2"], "injVal":10,  "color":633},
-          "h3":   { "global": true, "fixed": false, "range":[1e-308, 100.0], "fitStep":0, "refVal":10, "pdf":["tmp_2D_pdfs.root","h3"], "injVal":10,  "color":634}
-        },
-        "projectOnAxis": [0,1],
-        "axis": { 
-          "0": {"range": [0,10], "rebin":  1 },
-          "1": {"range": [0,10], "rebin":  1 }
+          "0": {"range": [0,15], "rebin":  1 },
+          "1": {"range": [-1,1], "rebin":  1 }
         },
         "normalizePDFInUserRange": false 
       }

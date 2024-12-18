@@ -2,22 +2,23 @@
 #define MST_MSHistFit_H
 
 // c/c++ libs
-#include "csignal"
-#include "cstdlib" 
-#include "map"
-#include "sstream"
-#include "fstream"
+#include <csignal>
+#include <cstdlib> 
+#include <map>
+#include <sstream>
+#include <fstream>
 
 // ROOT libs
-#include "TBranch.h"
 #include "TCanvas.h"
-#include "TFile.h"
 #include "TGraph.h"
 #include "TH1D.h"
 #include "THn.h"
 #include "TROOT.h"
-#include "TStyle.h"
+#include "TFile.h"
+#include "TBranch.h"
 #include "TTree.h"
+
+#include "TStyle.h"
 
 // rapidjson's DOM-style API
 #include "rapidjson/document.h"
@@ -28,7 +29,6 @@
 #include "MSModelTHnBMLF.h"
 #include "MSModelPulls.h"
 #include "MSMinimizer.h"
-#include "MSTHnHandler.h"
 
 
 using namespace std;
@@ -116,12 +116,22 @@ inline rapidjson::Document LoadConfig (const string& configFileName, bool verbos
       isMemberCorrect(dataSet.value, "exposure", "Number");                    // json/fittingModel/dataSets/*/exposure
       isMemberCorrect(dataSet.value, "components", "Object");                  // json/fittingModel/dataSets/*/components
       if (dataSet.value.HasMember("detectorResponse")) {                       // optional block:
-         isMemberCorrect(dataSet.value, "detectorResponse",
-             "Array", "String", 2);                                            // json/fittingModel/dataSets/*/detectorResponse
+         isMemberCorrect(dataSet.value, "detectorResponse", "Object");         // json/fittingModel/dataSets/*/detectorResponse
+         for (const auto& dr : dataSet.value["detectorResponse"].GetObject()) {// json/fittingModel/dataSets/*/detectorResponse/*
+            if (verbose) cout << "info: checking detectorResponse "            //
+                              << dr.name.GetString() << endl;                  //
+            isMemberCorrect(dr.value, "responseMatrix", "Array", "String", 2); // json/fittingModel/dataSets[>/detectorResponse/<]responseMatrix
+         }
       }                                                                        
       if (dataSet.value.HasMember("nadirExposurePDF")) {                       // optional block:
-         isMemberCorrect(dataSet.value, "nadirExposurePDF", 
-             "Array", "String", 2);         // json/fittingModel/dataSets/*/nadirExposurePDF
+         isMemberCorrect(dataSet.value, "nadirExposurePDF", "Object");
+         const auto& jnadir = dataSet.value["nadirExposurePDF"];
+         // print jnadir elements
+         for (const auto& i : jnadir.GetObject()) {
+           printf("name: %s\n", i.name.GetString());
+           isMemberCorrect(i.value, "pdf",                            // json/fittingModel/dataSets/*/nadirExposurePDF/pdf
+               "Array", "String", 2); 
+         }
       }
       for (const auto& component : dataSet.value["components"].GetObject()) {  // json/fittingModel/dataSets/*/components/*
          if (verbose) cout << "info: checking component "                      //
@@ -133,6 +143,12 @@ inline rapidjson::Document LoadConfig (const string& configFileName, bool verbos
          isMemberCorrect(component.value, "pdf", "Array", "String", 2);        // json/fittingModel/dataSets/*/components/*/pdf[]
          isMemberCorrect(component.value, "injVal", "Number");                 // json/fittingModel/dataSets/*/components/*/injVal
          isMemberCorrect(component.value, "color", "Int");                     // json/fittingModel/dataSets/*/components/*/color
+         if (component.value.HasMember("oscillation")) {                       // 
+            isMemberCorrect(component.value, "oscillation", "Bool");           // json/fittingModel/dataSets/*/components/*/oscillation
+         }                                                                     //
+         if (component.value.HasMember("responseMatrix")) {                    // 
+            isMemberCorrect(component.value, "responseMatrix", "String");      // json/fittingModel/dataSets/*/components/*/responseMatrix
+         }                                                                     //
       }                                                                        //
       isMemberCorrect(dataSet.value, "projectOnAxis", "Array", "Int");         // json/fittingModel/dataSets/*/projectOnAxis[]
       isMemberCorrect(dataSet.value, "axis", "Object");                        // json/fittingModel/dataSets/*/axis
@@ -199,6 +215,21 @@ inline MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,
    // initialize fitter
    MSMinimizer* fitter = new MSMinimizer();
 
+   MSParameterMap oscillationParMap;
+   if (json.HasMember("oscillation")) {
+      const auto& joscillation = json["oscillation"];
+      for (const auto& par : joscillation["parameters"].GetObject()) {
+         auto p = new mst::MSParameter(par.name.GetString());
+         p->SetFixed(par.value["fixed"].GetBool());
+         p->SetRange(par.value["range"].GetArray()[0].GetDouble(),
+                     par.value["range"].GetArray()[1].GetDouble());
+         p->SetGlobal( true );
+         p->SetFitStartStep(par.value["fitStep"].GetDouble());
+         p->SetFitStartValue(par.value["refVal"].GetDouble());
+         oscillationParMap.insert(MSParameterPair(p->GetName(), p));
+      }
+   }
+
    // loop over data sets and for each create the model and PDFBuilder
    for (const auto& dataSet : json["fittingModel"]["dataSets"].GetObject()) {
 
@@ -210,8 +241,13 @@ inline MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,
       // Set the exposure
       mod->SetExposure(dataSet.value["exposure"].GetDouble());
 
+
+      // Create a separate pdfBuilder for each model. The pointer of each pdfBuilder 
+      // will be associated to the model.
+      MSPDFBuilderTHn* pdfBuilder = new MSPDFBuilderTHn(dataSet.name.GetString());
+
       // Initialize hist handler //////////////////////////////////////////////
-      MSTHnHandler handler;
+      MSTHnHandler& handler = pdfBuilder->GetHistHandler();
 
       // read list of projected axis from the json file 
       // (only if the block projectOnAxis is defined)
@@ -243,15 +279,47 @@ inline MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,
 
       // end hist handler ////////////////////////////////////////////////////
 
-      // Create a separate pdfBuilder for each model. The pointer of each pdfBuilder 
-      // will be associated to the model.
-      MSPDFBuilderTHn* pdfBuilder = new MSPDFBuilderTHn(dataSet.name.GetString());
-
       // Set seed of the random number generator. Note that each PSDBuilder is
       // initialized with the same seed. This will produce the same data set if
       // the parameters of the data sets are all exactly the same.
       if (json.HasMember("MC")) pdfBuilder->SetSeed(json["MC"]["seed"].GetInt());
 
+      // Load the response matrix if present
+      if (dataSet.value.HasMember("detectorResponse")) {
+         for (const auto& dr : dataSet.value["detectorResponse"].GetObject()) {
+            TString pathToFile (getenv("M_STATS_HIST_FIT"));
+            if (pathToFile != "") pathToFile += "/";
+            pathToFile += dr.value["responseMatrix"][0].GetString();
+            pdfBuilder->RegisterResponseMatrix(handler.LoadHist(pathToFile.Data(),
+                                               dr.value["responseMatrix"][1].GetString(),
+                                               dr.name.GetString())); 
+         }
+      }
+
+      // Load the PDF with the nadir exposure if present
+      if (dataSet.value.HasMember("nadirExposurePDF")) {
+         TString pathToFile (getenv("M_STATS_HIST_FIT"));
+         if (pathToFile != "") pathToFile += "/";
+         // print path to nadir pdf file
+         const auto& jnadir = dataSet.value["nadirExposurePDF"].GetObject();
+         // print jnadir elements
+         for (const auto& i : jnadir) {
+           pathToFile += i.value["pdf"][0].GetString();
+           THn* hnNadir = handler.LoadHist(pathToFile.Data(),
+                 i.value["pdf"][1].GetString(),
+                 "nadirExposurePDF");
+           pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
+           delete hnNadir;
+         }
+      }
+
+      // Assign the pointer to the neutrino propagator and initialize the oscillation parameters
+      if (json.HasMember("oscillation")) {
+         mod->SetNeutrinoPropagator( fitter->GetNeutrinoPropagator() ); 
+         for (const auto& par : oscillationParMap) {
+            mod->AddParameter(par.second);
+         }
+      }
 
       // Initialize the parameters of each model, set their properties and load
       // the pdf's
@@ -281,10 +349,25 @@ inline MSMinimizer* InitializeAnalysis (const rapidjson::Document& json,
          if (pathToFile != "") pathToFile += "/";
          pathToFile +=component.value["pdf"][0].GetString();
 
-         pdfBuilder->RegisterHist( handler.BuildHist( pathToFile.Data(),
-                                   component.value["pdf"][1].GetString(),
-                                   component.name.GetString(),
-                                   true));
+         MSTHnPDF* pdf = new MSTHnPDF(component.name.GetString());
+         if (component.value.HasMember("responseMatrix")) {
+           pdf->SetTHn( handler.LoadHist( pathToFile.Data(),
+                 component.value["pdf"][1].GetString(),
+                 component.name.GetString()) );
+           pdf->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
+         }
+         else {
+           pdf->SetTHn( handler.BuildHist( pathToFile.Data(),
+                 component.value["pdf"][1].GetString(),
+                 component.name.GetString(),
+                 true));
+         }
+
+         if (component.value.HasMember("oscillation")) {
+           pdf->SetApplyOscillation(true);
+         }
+
+         pdfBuilder->RegisterPDF( std::move(pdf) );
       }
 
       // Move the pointer of the pdfBuilder to the model
