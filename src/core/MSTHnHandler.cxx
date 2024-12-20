@@ -200,4 +200,14 @@ THn* MSTHnHandler::CreateHn() {
   return outHist;
 }
 
+void MSTHnHandler::NormalizeHn(THn* hn) {
+  auto it = hn->CreateIter(fRespectUserRange);
+  Long64_t i = 0;
+  double integral = 0;
+  while ((i = it->Next()) >= 0) integral += hn->GetBinContent(i);
+  hn->Scale(1./integral);
+
+  return;
+}
+
 } // namespace mst

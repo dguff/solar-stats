@@ -27,6 +27,9 @@
 // m-stats libs
 #include "MSPDFBuilderTHn.h"
 
+// Prob3++
+#include "BargerPropagator.h"
+
 namespace mst {
 
 MSPDFBuilderTHn::MSPDFBuilderTHn(const std::string& name): MSObject(name)
@@ -186,8 +189,60 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
    return realization;
 }
 
-THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf) {}
+THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator) {
+  const int ndim = 2; 
+  const THnBase* pdfHn = pdf->GetTHn();
+  const MSTHnHandler::axis& axis_nadir = fHandler.GetAxes().at(1); 
+  const int nbin[ndim] = {pdfHn->GetAxis(0)->GetNbins(), axis_nadir.fNbins}; 
+  const double xmin[ndim] = {pdfHn->GetAxis(0)->GetXmin(), axis_nadir.fMin};
+  const double xmax[ndim] = {pdfHn->GetAxis(0)->GetXmax(), axis_nadir.fMax}; 
 
-THn* MSPDFBuilderTHn::ApplyResponseMatrix(MSTHnPDF* pdf) {}
+  THnD *oscillogram = new THnD("oscillogram", "oscillogram", ndim, nbin, xmin, xmax);
+  
+  oscillogram->GetAxis(0)->SetRangeUser(2.5, 20.0); 
+  auto* it = oscillogram->CreateIter(true);
+
+  int* coords = new int[ndim];
+  Long64_t i = 0;
+  while( (i = it->Next(coords)) >= 0 ) 
+  {
+    const double nu_ene  = pdfHn->GetAxis(0)->GetBinCenter( coords[0] );
+    const double nu_flux = pdfHn->GetBinContent( &coords[0] );
+    const double cos_nad = fNadirPDF->GetBinContent( coords[1] );
+    propagator->SetEnergy( nu_ene ); 
+    propagator->DefinePath( cos_nad, 1.47e8 ); 
+    propagator->propagate( 1 );
+    const double p11 = propagator->GetProb(1, 1); 
+    const double p21 = propagator->GetProb(2, 1); 
+    const double p31 = propagator->GetProb(3, 1);
+
+    double f_2 = propagator->GetSinSqTheta12Sun();
+    double f_3 = propagator->GetSinSqTheta13(); 
+    double surv = (1 - f_2 - f_3) * p11 + f_2 * p21 + f_3 * p31;
+
+    oscillogram->SetBinContent( coords, nu_flux * surv * cos_nad ); 
+  }
+
+  fHandler.NormalizeHn( oscillogram ); 
+  delete[] coords;
+
+  return oscillogram;
+}
+
+THn* MSPDFBuilderTHn::ApplyResponseMatrix(THn* target, THn* responseMatrix) {
+  THn* out = fHandler.CreateHn();
+  out->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName())); 
+
+  auto* it = out->CreateIter(true); 
+  Long64_t i = 0; 
+  int* coords = new int[out->GetNdimensions()];
+
+  while ( (i = it->Next(coords)) >= 0 ) {
+
+
+  }
+
+  return out; 
+}
 
 } // namespace mst

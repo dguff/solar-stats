@@ -117,8 +117,8 @@ class MSPDFBuilderTHn : public MSObject
    MSTHnHandler fHandler;
 
    // Private methods
-   THn* CreateOscillogramHD(MSTHnPDF* pdf);
-   THn* ApplyResponseMatrix(MSTHnPDF* pdf); 
+   THn* CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator);
+   THn* ApplyResponseMatrix(THn* target, THn* responseMatrix); 
 };
 
 } // namespace mst

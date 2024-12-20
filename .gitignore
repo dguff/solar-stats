@@ -56,6 +56,10 @@ m4/ltversion.m4
 /doc/html/
 /doc/latex/
 
+/.cache
+/build
+/install
+
 # Eclipse CDT project files
 /.cproject
 /.project

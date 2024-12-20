@@ -45,6 +45,14 @@ namespace mst {
 class MSTHnHandler : public MSObject
 {
    public:
+     struct axis {
+       bool   fSetRange = {false};
+       double fMin      = {0.0};
+       double fMax      = {0.0};
+       int    fNbins    = {0};
+       int    fNgroup   = {1};
+     };
+
       //! Constructor
       MSTHnHandler(const std::string& name = "") : MSObject (name) {}
       //! Destructor
@@ -89,17 +97,16 @@ class MSTHnHandler : public MSObject
 
       THn* CreateHn(); 
 
+      void NormalizeHn(THn* hn); 
+
+      //! Get axes vector
+      const std::vector<axis>& GetAxes() const { return fAxis; }
+      std::vector<axis>& GetAxes() { return fAxis; }
+
       //! Reset settings
       void Reset() { fProjectID.clear(); fAxis.clear(); fRespectUserRange = false; }
 
    protected:
-      struct axis {
-         bool   fSetRange = {false};
-         double fMin      = {0.0};
-         double fMax      = {0.0};
-         int    fNbins    = {0};
-         int    fNgroup   = {1};
-      };
       std::vector<int> fProjectID;
       std::vector<axis> fAxis;
 
