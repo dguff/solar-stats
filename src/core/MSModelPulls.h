@@ -32,6 +32,9 @@
 // m-stats libs
 #include "MSModel.h"
 
+// Prob3++
+#include "NeutrinoPropagator.h"
+
 namespace mst {
 
 class MSModelPull : public mst::MSModel
@@ -44,7 +47,7 @@ class MSModelPull : public mst::MSModel
 
       //! function returning the negative log likelihood function to be 
       //! minimized (NLL)
-      double NLogLikelihood(double* par) override = 0;
+      double NLogLikelihood(double* par, NeutrinoPropagator* propagator) override = 0;
 
       //! Set parameter to pull
       void SetPullPar (const std::string& par) { fPullPar = par;}
@@ -65,7 +68,7 @@ class MSModelPullGaus : public mst::MSModelPull
 
       //! function returning the negative log likelihood function to be 
       //! minimized (NLL)
-      double NLogLikelihood(double* par) override;
+      double NLogLikelihood(double* par, NeutrinoPropagator* propagator) override;
 
       //! Set centroid
       void SetCentroid (double centroid) {fCentroid = centroid;}
@@ -92,7 +95,7 @@ class MSModelPullExp : public mst::MSModelPull
 
       //! function returning the negative log likelihood function to be 
       //! minimized (NLL)
-      double NLogLikelihood(double* par) override;
+      double NLogLikelihood(double* par, NeutrinoPropagator* propagator) override;
 
       //! Set limit
       void SetLimit (double limit) {

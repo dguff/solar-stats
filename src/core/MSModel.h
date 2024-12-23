@@ -92,7 +92,7 @@ class MSModel : public MSObject
       virtual void InitializeParameters() {}
 
       //! Virtual function returning the NLogLikelihood function
-      virtual double NLogLikelihood(double* parameters) = 0;
+      virtual double NLogLikelihood(double* parameters, NeutrinoPropagator* propagator = nullptr) = 0;
 
     //
     // Parameters of interest for the model
@@ -102,6 +102,10 @@ class MSModel : public MSObject
       void SetExposure (double exposure) {fExposure = exposure;}
       //! Get the expsosure of data set
       double GetExposure () const {return fExposure;}
+      //! Set the neutrino propagator
+      void SetNeutrinoPropagator(NeutrinoPropagator* prop) {fNeutrinoPropagator = prop;}
+      //! Get the neutrino propagator
+      NeutrinoPropagator* GetNeutrinoPropagator() const {return fNeutrinoPropagator;}
 
     //
     // Class members
@@ -113,6 +117,9 @@ class MSModel : public MSObject
       std::vector<std::string>* fParNameList {nullptr};
       //! Exposure of the data set
       double fExposure {0.0};
+      //! Pointer to the Neutrino propagator (owned by the MSMinimizer)
+      NeutrinoPropagator* fNeutrinoPropagator {nullptr};
+
 };
 
 // Templated class inheriting from MSModel to handle a data set and pdfBuilder
@@ -128,7 +135,7 @@ class MSModelT: public MSModel {
       virtual ~MSModelT() { delete fDataSet; delete fPDFBuilder;}
 
       //! Virtual function from MSModel to be overloaded in the concrete class
-      virtual double NLogLikelihood(double* par) override = 0;
+      virtual double NLogLikelihood(double* par, NeutrinoPropagator* propagator = nullptr) override = 0;
 
       //! Set data set and delete the one previsouly set
       void SetDataSet(TData* dataSet) { delete fDataSet; fDataSet = dataSet; }
@@ -142,19 +149,12 @@ class MSModelT: public MSModel {
 
       //! Check consistency between PDF's and data set
       virtual bool AreInputHistsConsistent () = 0;
-   
-      //! Set the neutrino propagator
-      void SetNeutrinoPropagator(NeutrinoPropagator* prop) {fNeutrinoPropagator = prop;}
-      //! Get the neutrino propagator
-      NeutrinoPropagator* GetNeutrinoPropagator() const {return fNeutrinoPropagator;}
 
    protected:
       //! pointer to the data set 
       const TData* fDataSet {nullptr}; 
       //! Pointer to PDFBuilder
       TPDF* fPDFBuilder {nullptr};
-      //! Pointer to the Neutrino propagator (owned by the MSMinimizer)
-      NeutrinoPropagator* fNeutrinoPropagator {nullptr};
 };
 
 } // namespace mst

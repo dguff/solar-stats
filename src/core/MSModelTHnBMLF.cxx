@@ -20,14 +20,14 @@
 
 namespace mst {
 
-double MSModelTHnBMLF::NLogLikelihood(double* par)
+double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagator)
 {
    fPDFBuilder->ResetPDF();
 
    // retrieve parameters from Minuit and compute the total exposure
    for (int i =0; i < fParNameList->size(); i++) {
       const double par_cts = GetMinuitParameter(par, fParNameList->at(i));
-      fPDFBuilder->AddHistToPDF(fParNameList->at(i),  par_cts);
+      fPDFBuilder->AddHistToPDF(fParNameList->at(i),  par_cts, propagator);
    }
 
    const THn* pdf = fPDFBuilder->GetPDF("tmpPDF");

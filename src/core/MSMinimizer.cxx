@@ -36,6 +36,9 @@ MSMinimizer::MSMinimizer(const std::string& name) : MSObject(name)
 
 MSMinimizer::~MSMinimizer()
 {
+  printf("calling MSMinimizer destructor\n");
+  getchar(); 
+  
    if (fModelVector) {
       for (auto& i : *fModelVector) delete i;
       delete fModelVector;
@@ -249,7 +252,8 @@ void MSMinimizer::FCNNLLLikelihood(int & /*npar*/, double * /*grad*/,
 {
    fval = 0.0;
    MSModelVector* modelVector = global_pointer->fModelVector;
-   for (const auto& i : *modelVector) fval += i->NLogLikelihood(par);
+   NeutrinoPropagator* propagator = global_pointer->fNeutrinoPropagator;
+   for (const auto& i : *modelVector) fval += i->NLogLikelihood(par, propagator);
 }
 
 } // namespace mst

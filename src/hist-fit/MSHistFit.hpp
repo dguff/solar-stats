@@ -30,7 +30,6 @@
 #include "MSModelPulls.h"
 #include "MSMinimizer.h"
 
-
 using namespace std;
 
 namespace mst {
@@ -437,7 +436,9 @@ inline bool SetDataSetFromMC (const rapidjson::Document& json, MSMinimizer* fitt
          const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
                                     ["components"][par.c_str()]["injVal"].GetDouble();
 
-         pdfBuilder->AddHistToPDF(par.c_str(), trueVal);
+         printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
+                par.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+         pdfBuilder->AddHistToPDF(par.c_str(), trueVal, fitter->GetNeutrinoPropagator());
          totalCounts += trueVal * mod->GetExposure();
       }
       // register new data set. The previous one is delete inside the model
