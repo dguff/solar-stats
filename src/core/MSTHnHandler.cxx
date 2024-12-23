@@ -114,7 +114,7 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
 
    // project hist
    if (fProjectID.size()) {
-      int IDs[fProjectID.size()] = {0};
+      int IDs[fProjectID.size()];
       for (int i =0; i < fProjectID.size(); i++) IDs[i] = fProjectID[i];
 
       THn* tmp = outHist->Projection(fProjectID.size(), IDs);
@@ -137,7 +137,8 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
 
             // a new hist is substitute to the original one because the method THn 
             // doesn't not provide a method that modify the object itself
-            int ngroup[outHist->GetNdimensions()] = {1};
+            int ngroup[outHist->GetNdimensions()]; 
+            for (size_t idim = 0; idim < outHist->GetNdimensions(); idim++) ngroup[idim] = 1;
             for (int i = 0; i < fAxis.size(); i++) ngroup[i] = fAxis[i].fNgroup;
 
             THn* tmp = outHist->Rebin(ngroup);
@@ -150,20 +151,26 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
       }
 
       // set range user if changed
-      for (int i = 0; i < fAxis.size(); i++) {
-         if (fAxis[i].fSetRange) 
-            outHist->GetAxis(i)->SetRangeUser(fAxis[i].fMin,fAxis[i].fMax);
-      }
-   }
-   else { // set model of the THn
-     for (int idim = 0; idim < outHist->GetNdimensions(); idim++) {
-        axis aa;
-        aa.fMin = outHist->GetAxis(idim)->GetXmin();
-        aa.fMax = outHist->GetAxis(idim)->GetXmax();
-        aa.fNbins = outHist->GetAxis(idim)->GetNbins();
+      for (int idim = 0; idim < fAxis.size(); idim++) {
+        MSTHnHandler::axis axis_temp;
+         if (fAxis.at(idim).fSetRange) {
+           outHist->GetAxis(idim)->SetRangeUser(fAxis[idim].fMin,fAxis[idim].fMax);
+         }
+         axis_temp.fMin   = outHist->GetAxis(idim)->GetXmin();
+         axis_temp.fMax   = outHist->GetAxis(idim)->GetXmax();
+         axis_temp.fNbins = outHist->GetAxis(idim)->GetNbins();
 
-        fAxis.push_back(aa);
-     }
+         if (axis_temp == fAxis.at(idim)) continue;
+         else {
+            std::cerr << "MSTHnHandler::BuildHist() WARNING: axis " << idim << " differs from set\n";
+            std::cerr << "initial settings: \n";
+            fAxis.at(idim).print();
+            std::cerr << "current settings: \n";
+            axis_temp.print();
+
+            fAxis.at(idim) = axis_temp;
+         }
+      }
    }
 
    // Normalize 
@@ -193,6 +200,7 @@ THn* MSTHnHandler::CreateHn() {
      nBins.at(idim) = axis.fNbins;
      min.at(idim) = axis.fMin;
      max.at(idim) = axis.fMax;
+     printf("axis %d: %d bins, min %f, max %f\n", idim, axis.fNbins, axis.fMin, axis.fMax);
      idim++; 
   }
 

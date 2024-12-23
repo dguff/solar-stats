@@ -17,7 +17,7 @@ namespace mst {
       inline MSTHnPDF(const std::string& name = ""): MSObject(name) {}
       inline MSTHnPDF(const std::string& name, THn* thn): MSObject(name), fTHnPDF(thn) {}
       inline ~MSTHnPDF() { if (fTHnPDF) delete fTHnPDF; }
-      inline THnBase* GetTHn() {return fTHnPDF;}
+      inline THn* GetTHn() {return fTHnPDF;}
       inline void SetTHn(THn* thn) {fTHnPDF = thn;}
       inline void SetRespMatrix(THn* thn) {fRespMatrix = thn;}
       inline THn* GetRespMatrix() {return fRespMatrix;}

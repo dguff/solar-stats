@@ -117,20 +117,33 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
 
    // Add hist to pdf with scaling factor
    THn* hn = nullptr; 
+   THn* hn_osc = nullptr;
    if (im->second->ApplyOscillation()) {
       if (propagator == nullptr) {
-        fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator given\n");
+        fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator associated with %s\n", 
+            histName.c_str());
         exit(EXIT_FAILURE); 
       } 
-      
+      else {
+        hn_osc = CreateOscillogramHD(im->second, propagator); 
+      }
 
+      if ( im->second->GetRespMatrix() ) {
+        hn = ApplyResponseMatrix(hn_osc, im->second->GetRespMatrix());
+      }
+
+      delete hn_osc;
    }
 
    if (im->second->GetRespMatrix()) {
-
+      hn = ApplyResponseMatrix(im->second->GetTHn(), im->second->GetRespMatrix());
+   } else {
+      hn = im->second->GetTHn();
    }
 
    fTmpPDF->Add(hn, scaling);
+
+   delete hn; 
 }
 
 THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) { 
@@ -225,24 +238,47 @@ THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* pro
 
   fHandler.NormalizeHn( oscillogram ); 
   delete[] coords;
+  delete it;
 
   return oscillogram;
 }
 
 THn* MSPDFBuilderTHn::ApplyResponseMatrix(THn* target, THn* responseMatrix) {
-  THn* out = fHandler.CreateHn();
-  out->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName())); 
+  // TODO: make these defined in configuration file
+  const int iaxis_transform_target = 0; 
+  const int iaxis_transform_response = 1; 
 
-  auto* it = out->CreateIter(true); 
-  Long64_t i = 0; 
-  int* coords = new int[out->GetNdimensions()];
+  THn* product = fHandler.CreateHn();
+  product->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName())); 
 
-  while ( (i = it->Next(coords)) >= 0 ) {
+  const int ndim_target = target->GetNdimensions(); 
+  const int ndim_product = product->GetNdimensions(); 
 
+  int ibresp[2] = {0, 0}; 
+  int ibtarget[2] = {0, 0}; 
+  int ibprod[2] = {0, 0}; 
 
+  const int nbins_target = target->GetAxis(iaxis_transform_target)->GetNbins(); 
+  const int nbins_product = product->GetAxis(iaxis_transform_response)->GetNbins(); 
+
+  double response = 0.0; 
+
+  for (size_t n=1; n<=product->GetAxis(1)->GetNbins(); n++) {
+    ibtarget[1] = n; 
+    ibprod[1] = n; 
+    for (size_t i = 1; i <= nbins_target; i++) {
+      ibresp[0] = i; 
+      for (size_t j = 1; j <= nbins_product; j++) {
+        ibresp[1] = j; 
+        response = responseMatrix->GetBinContent(ibresp); 
+        if (response > 0) {
+          product->AddBinContent(ibprod, target->GetBinContent(ibtarget) * response);
+        }
+      }
+    }
   }
 
-  return out; 
+  return product;
 }
 
 } // namespace mst

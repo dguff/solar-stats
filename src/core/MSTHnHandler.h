@@ -51,6 +51,15 @@ class MSTHnHandler : public MSObject
        double fMax      = {0.0};
        int    fNbins    = {0};
        int    fNgroup   = {1};
+       bool operator==(const axis& a) const {
+          return fSetRange == a.fSetRange 
+            && fMin == a.fMin       && fMax == a.fMax 
+            && fNbins == a.fNbins   && fNgroup == a.fNgroup;
+       }
+       void print() const {
+         printf("axis settings: nbins = %d, min = %f, max = %f, ngroup = %d\n", 
+                fNbins, fMin, fMax, fNgroup);
+       }
      };
 
       //! Constructor
