@@ -27,14 +27,13 @@
         },
         "projectOnAxis": [0,1],
         "axis": { 
-          "0": {"range": [0,15], "rebin":  1 },
-          "1": {"range": [-1,1], "rebin":  1 }
+          "0": {"range": [0,15], "rebin" : 1},
+          "1": {"range": [-1,1], "rebin" : 1}
         },
         "normalizePDFInUserRange": false 
       }
     },
     "pulls": {
-        "h1"      : { "type": "gauss", "centroid": 4.0, "sigma": 0.10}, 
         "theta13" : { "type": "gauss", "centroid": 0.1, "sigma": 0.01}
     }
   },
