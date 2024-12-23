@@ -45,10 +45,16 @@ THnD* build_response_matrix(TTree* t, const TH1* hEnu, const int ecal_nb, const 
     TH1D* h = hResponse->Projection(1, "h");
     const double integral = h->Integral();
     double norm = 0; 
-    if (integral > 0) norm = 1.0 / integral;
-    for (int j=1; j<=nbins[1]; j++) {
-      int ibin[2] = {i, j};
-      hResponse->SetBinContent(ibin, h->GetBinContent(j) * norm);
+    if (integral > 0) {
+      norm = 1.0 / integral;
+      for (int j=1; j<=nbins[1]; j++) {
+        int ibin[2] = {i, j};
+        hResponse->SetBinContent(ibin, h->GetBinContent(j) * norm);
+      }
+    }
+    else {
+      int ibin[2] = {i, 1}; 
+      hResponse->SetBinContent(ibin, 1.0); 
     }
     delete h;
   }
@@ -136,6 +142,29 @@ int neutrino_pdf_builder(const TString& spectrum_file = "./b8-neutrino.txt")
     double cnad = h_nadir->GetBinContent(coords[1]); 
     hnTarget->SetBinContent(i, flux * cnad); 
   }
+  delete iter;
+
+  nbins[0] = h2->GetAxis(1)->GetNbins(); 
+  xmin[0] = h2->GetAxis(1)->GetXmin(); 
+  xmax[0] = h2->GetAxis(1)->GetXmax();
+  THnD* hnProduct = new THnD("hnProduct", "product", 2, nbins, xmin, xmax); 
+  for (int inadir=1; inadir<=nbins[1]; inadir++)
+  {
+    for (int ienu = 1; ienu <= hnTarget->GetAxis(0)->GetNbins(); ienu++) 
+    {
+      for (int ierec = 1; ierec <= h2->GetAxis(1)->GetNbins(); ierec++) 
+      {
+        int ibresp[2] = {ienu, ierec}; 
+        int ibtarget[2] = {ienu, inadir};
+        int ibprod[2] = {ierec, inadir};
+        double response = h2->GetBinContent(ibresp);
+        if (response > 0.0) {
+          hnProduct->AddBinContent(ibprod, response * hnTarget->GetBinContent(ibtarget));
+        }
+      }
+    }
+  }
+
 
   TCanvas* c2D = new TCanvas(); 
   c2D->Divide(2, 1); 
@@ -143,6 +172,10 @@ int neutrino_pdf_builder(const TString& spectrum_file = "./b8-neutrino.txt")
   TH2D* h2Target = hnTarget->Projection(1, 0);
   h2Target->SetEntries(nbins[0] * nbins[1]); 
   h2Target->Draw("colz"); 
+  c2D->cd(2); 
+  TH2D* h2Product = hnProduct->Projection(1, 0); 
+  h2Product->SetEntries(nbins[0] * nbins[1]);
+  h2Product->Draw("colz");
 
   //TFile* boron_file = new TFile("boron_pdf.root", "RECREATE");
   //hb8->Write();
