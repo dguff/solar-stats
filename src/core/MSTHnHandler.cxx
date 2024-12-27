@@ -200,7 +200,7 @@ THn* MSTHnHandler::CreateHn() {
      nBins.at(idim) = axis.fNbins;
      min.at(idim) = axis.fMin;
      max.at(idim) = axis.fMax;
-     printf("axis %d: %d bins, min %f, max %f\n", idim, axis.fNbins, axis.fMin, axis.fMax);
+     //printf("axis %d: %d bins, min %f, max %f\n", idim, axis.fNbins, axis.fMin, axis.fMax);
      idim++; 
   }
 
@@ -208,12 +208,12 @@ THn* MSTHnHandler::CreateHn() {
   return outHist;
 }
 
-void MSTHnHandler::NormalizeHn(THn* hn) {
+void MSTHnHandler::NormalizeHn(THn* hn, const double norm) {
   auto it = hn->CreateIter(fRespectUserRange);
   Long64_t i = 0;
   double integral = 0;
   while ((i = it->Next()) >= 0) integral += hn->GetBinContent(i);
-  hn->Scale(1./integral);
+  hn->Scale( norm / integral);
 
   return;
 }

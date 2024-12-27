@@ -70,19 +70,26 @@ class MSModel : public MSObject
       //! Get the vector of parameters registered by an instance of the class
       const std::vector<std::string>* GetLocalParameters() const { return fParNameList; }
 
-   protected:
-      //! Get iterator over a parameter
-      MSParameterMap::iterator GetParameterIterator(const std::string& localName) const;
-      //! Get index of a parameter (use names without local/global prefix)
-       unsigned int GetParameterIndex(const std::string& localName) const;
-      //! Get parameter value from Minuit array (use names without local/global prefix)
-       double GetMinuitParameter(double* par, const std::string& localName) const {
-          return par[GetParameterIndex(localName)];
-       }
       //! Get the local/global name  (the format is {global:local}.name)
       std::string GetGlobalName (const std::string& name, bool isGlobal = false) const {
          return (isGlobal ? "global" : GetName()) + "." + name;
       }
+      //! Get the local name from the global/local name
+      std::string GetLocalName( const std::string& name ) const {
+        std::string::size_type pos = name.find(".");
+        if (pos == std::string::npos) return name;
+        return name.substr(pos+1);
+      }
+
+   protected:
+      //! Get iterator over a parameter
+      MSParameterMap::iterator GetParameterIterator(const std::string& localName) const;
+      //! Get index of a parameter (use names without local/global prefix)
+      unsigned int GetParameterIndex(const std::string& localName) const;
+      //! Get parameter value from Minuit array (use names without local/global prefix)
+       double GetMinuitParameter(double* par, const std::string& localName) const {
+          return par[GetParameterIndex(localName)];
+       }
 
     //
     // Functions to be overload by the concrete models

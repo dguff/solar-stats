@@ -73,6 +73,19 @@ class MSMinimizer : public MSObject
          return it != fGlobalParMap->end() ? it->second : 0;
       }
 
+      //! Get the index of a parameter in the Minuit parameter array
+      size_t GetMinuitParameterIndex(const std::string& parGloablName) const {
+         MSParameterMap::iterator it = fGlobalParMap->find(parGloablName);
+         if (it == fGlobalParMap->end()) {
+           fprintf(stderr, "MSMinimizer::GetMinuitParameterIndex: parameter %s not found\n",
+                   parGloablName.c_str());
+           exit(EXIT_FAILURE);
+         }
+         size_t index = std::distance(fGlobalParMap->begin(), it);
+         return index;
+      }
+
+
       //! Print summary of the parameters
       void PrintParSummary() const {
          for (const auto& it : *fGlobalParMap) it.second->PrintSummary();
@@ -100,6 +113,8 @@ class MSMinimizer : public MSObject
 
       //! Get the pointer to the neutrino propagator
       NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
+      //! Update oscillation parameters in the propagator
+      void UpdateOscillationParameters();
 
       //! Sync parameter info from the model to minuit
       //! Optionally, do not reset the starting values of the fit parameters and 
@@ -142,6 +157,36 @@ class MSMinimizer : public MSObject
             double* par, int flag);
 
    private:
+      //! Structure to hold the input parameters for the neutrino propagator
+      struct PropagatorInputs_t {
+        int ix12 = -1;
+        int ix13 = -1;
+        int ix23 = -1;
+        int idcp = -1;
+        int idm21 = -1;
+        int idm32 = -1;
+
+        double x12 = {};
+        double x13 = {};
+        double x23 = {};
+        double dcp = {};
+        double dm21 = {};
+        double dm32 = {};
+
+        bool useSinSq = true; 
+        int  nubar = 1;
+
+        //! Set oscillation parameters 
+        void SetParameters(const double* par) {
+          (ix12 > 0) ? x12 = par[ix12] : x12 = 0.0;
+          (ix13 > 0) ? x13 = par[ix13] : x13 = 0.0;
+          (ix23 > 0) ? x23 = par[ix23] : x23 = 0.0;
+          (idcp > 0) ? dcp = par[idcp] : dcp = 0.0;
+          (idm21 > 0) ? dm21 = par[idm21] : dm21 = 0.0;
+          (idm32 > 0) ? dm32 = par[idm32] : dm32 = 0.0;
+        }
+      }; 
+
       //! Global pointer for using FCNNLLLikelihood as Minuit FCN
       static MSMinimizer* global_pointer;
 
@@ -163,6 +208,8 @@ class MSMinimizer : public MSObject
 
       //! Pointer to the neutrino propagator
       NeutrinoPropagator* fNeutrinoPropagator {nullptr};
+      //! Structure to hold the input parameters for the neutrino propagator
+      PropagatorInputs_t fPropagatorInputs;
 
       //! Maximum interations of minuit during minimization
       int fMinuitMaxCalls {2000};

@@ -41,51 +41,56 @@
 
 namespace mst {
 
-class MSParameter : public MSObject
-{
-   public:
+  class MSParameter : public MSObject
+  {
+    public:
+      //! Enum defining the type of parameter
+      enum class EMSParameterType : int {
+        kTypeUndefined = 0, kPoi = 1, kNuisance = 2, kInput = 3, kOscillation = 4
+      };
+      //! Enum defining the type of variable used to represent the parameter
+      enum class  EMSVariableType : int {
+        kVarUndefined = 0, kShort = 1, kInt = 2, kFloat = 3, kDouble = 4
+      };
+
+
       //! Constructor
       MSParameter(const std::string& name = "");
       //! Destructor
       virtual ~MSParameter();
 
-      //! Enum defining the type of parameter
-      enum class EMSParameterType : int {
-         kTypeUndefined = 0, kPoi = 1, kNuisance = 2, kInput = 3
-      };
-      //! Enum defining the type of variable used to represent the parameter
-      enum class  EMSVariableType : int {
-         kVarUndefined = 0, kShort = 1, kInt = 2, kFloat = 3, kDouble = 4
-      };
-
       //! Set the type of parameter
       void SetParameterType(MSParameter::EMSParameterType parameterType) {
-         fParameterType = parameterType;
+        fParameterType = parameterType;
       }
       //! Get the type of parameter
       inline MSParameter::EMSParameterType GetParameterType() const {
-         return fParameterType;
+        return fParameterType;
       }
       //! Flag the parameter as parameter of interest
-      void SetPoi() { fParameterType = EMSParameterType::kPoi; }
+      inline void SetPoi() { fParameterType = EMSParameterType::kPoi; }
       //! Flag the parameter as parameter of nuisance
-      void SetNuisance() { fParameterType = EMSParameterType::kNuisance; }
+      inline void SetNuisance() { fParameterType = EMSParameterType::kNuisance; }
       //! Flag the parameter as  input parameter of the analysis
-      void SetInput() { fParameterType = EMSParameterType::kInput; }
+      inline void SetInput() { fParameterType = EMSParameterType::kInput; }
+      //! Flag the parameter as oscillation parameter
+      inline void SetOscillation() { fParameterType = EMSParameterType::kOscillation; }
       //! Check if the parameter is of interest
       inline bool IsPoi() const { return (fParameterType == EMSParameterType::kPoi); }
       //! Check if the parameter is nuisance
       inline bool IsNuisance() const { return (fParameterType == EMSParameterType::kNuisance); }
       //! Check if the parameter is an input of the analysis
       inline bool IsInput() const { return (fParameterType == EMSParameterType::kInput); }
+      //! Check if the parameter is an oscillation parameter
+      inline bool IsOscillation() const { return (fParameterType == EMSParameterType::kOscillation); }
 
       //! Set the type of variables used to represent the parameter
       void SetVariableType(EMSVariableType variableType) {
-         fVariableType = variableType;
+        fVariableType = variableType;
       }
       //! Get the type of variables used to represent the parameter
       inline MSParameter::EMSVariableType GetVariableType() const {
-         return fVariableType;
+        return fVariableType;
       }
 
       //! Set fixed parameter
@@ -94,9 +99,9 @@ class MSParameter : public MSObject
       void FixTo(double value) { fFixed = true; SetFitStartValue(value, false); }
       //! Release the parameter
       void Release() { 
-         fFixed = false; 
-         fFitStartValueSet = fFitStartValueSetDefault;
-         fFitStartValue = fFitStartValueDefault;
+        fFixed = false; 
+        fFitStartValueSet = fFitStartValueSetDefault;
+        fFitStartValue = fFitStartValueDefault;
       }
       //! Check if the parameter is fixed
       bool IsFixed() const { return fFixed; }
@@ -118,7 +123,7 @@ class MSParameter : public MSObject
       inline bool IsRangeMaxSet() const { return fRangeMaxSet; }
       //! Check if the range is set
       inline bool IsRangeSet() const {
-         return IsRangeMinSet() && IsRangeMaxSet();
+        return IsRangeMinSet() && IsRangeMaxSet();
       }
 
       //! Set lower edge of the range
@@ -127,7 +132,7 @@ class MSParameter : public MSObject
       void SetRangeMax(double max) { fRangeMaxSet = true; fRangeMax = max; }
       //! Set range
       void SetRange(double min, double max) {
-         SetRangeMin(min); SetRangeMax(max);
+        SetRangeMin(min); SetRangeMax(max);
       }
 
       //! Get range lower edge
@@ -136,31 +141,31 @@ class MSParameter : public MSObject
       inline double GetRangeMax() const { return fRangeMaxSet ? fRangeMax : 0; }
       //! Get range width
       inline double GetRangeWidth() const {
-         return (GetRangeMax() - GetRangeMin());
+        return (GetRangeMax() - GetRangeMin());
       }
 
       //! Set fit starting value of the parameter
       void SetFitStartValue(double value, bool setDefault = true) {
-         fFitStartValueSet = true; fFitStartValue = value;
-         if (setDefault) { 
-            fFitStartValueSetDefault = true; 
-            fFitStartValueDefault = value; 
-         }
+        fFitStartValueSet = true; fFitStartValue = value;
+        if (setDefault) { 
+          fFitStartValueSetDefault = true; 
+          fFitStartValueDefault = value; 
+        }
       }
       //! Check if the fit starting value of the par is set
       inline bool IsFitStartValueSet() const { return fFitStartValueSet; }
       //! Set fit starting value of the parameter
       inline double GetFitStartValue() const {
-         return fFitStartValueSet ?  fFitStartValue : (fRangeMax - fRangeMin)/2;
+        return fFitStartValueSet ?  fFitStartValue : (fRangeMax - fRangeMin)/2;
       }
 
       void SetFitStartStep(double step)     { fFitStartStep = step; }
       inline double GetFitStartStep() const {
-         return fFitStartStep ? fFitStartStep : GetRangeWidth()/100.;
+        return fFitStartStep ? fFitStartStep : GetRangeWidth()/100.;
       }
       //! Check if the value is at the range limits
       inline bool IsAtLimit(double value) const {
-         return IsRangeSet() && (value==GetRangeMin() || value==GetRangeMax());
+        return IsRangeSet() && (value==GetRangeMin() || value==GetRangeMax());
       }
 
       //! Print parameter info
@@ -187,7 +192,7 @@ class MSParameter : public MSObject
       //! Reset fit results
       void ResetFitResult();
 
-   private:
+    private:
       //! Flag storing the type of parameter
       EMSParameterType fParameterType {EMSParameterType::kTypeUndefined};
       //! Flag of type of variable used to represent the parameter
@@ -220,11 +225,11 @@ class MSParameter : public MSObject
              fFitLowerLimit   {0.0}, 
              fFitUpperLimit   {0.0};
 
-};
+  };
 
-//! Vector of parameters used to build up a model
-using MSParameterMap =  std::map <std::string, MSParameter*>;
-using MSParameterPair = std::pair<std::string, MSParameter*>;
+  //! Vector of parameters used to build up a model
+  using MSParameterMap =  std::map <std::string, MSParameter*>;
+  using MSParameterPair = std::pair<std::string, MSParameter*>;
 
 } // namespace mst
 

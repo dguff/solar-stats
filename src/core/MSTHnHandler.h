@@ -106,7 +106,7 @@ class MSTHnHandler : public MSObject
 
       THn* CreateHn(); 
 
-      void NormalizeHn(THn* hn); 
+      void NormalizeHn(THn* hn, const double norm = 1.0);  
 
       //! Get axes vector
       const std::vector<axis>& GetAxes() const { return fAxis; }

@@ -92,7 +92,7 @@ class MSPDFBuilderTHn : public MSObject
    THn* GetPDF (const std::string& objName);
 
    //! Get MC realization extracted by tmpPDF
-   THn* GetMCRealizaton(int ctsNum, bool addPoissonFluctuation = false);
+   THn* GetMCRealizaton(int ctsNum, const bool addPoissonFluctuation = false, const string& procedure_name = "sampling");
 
    //! Get the response matrix
    inline THn* GetResponseMatrix(const std::string& name) { return fRespMatrixMap->at(name); }
@@ -116,9 +116,20 @@ class MSPDFBuilderTHn : public MSObject
    //! Hist handler
    MSTHnHandler fHandler;
 
+   enum class MCRealizationProcedure {
+     kUndefined = 0, kSampling = 1, kBinSampling = 2, kAsimov = 3
+   };
+
+   inline MCRealizationProcedure GetMCRealizationProcedure(const string& procedure_name) {
+     if (procedure_name == "sampling") return MCRealizationProcedure::kSampling;
+     else if (procedure_name == "bin_sampling") return MCRealizationProcedure::kBinSampling;
+     else if (procedure_name == "asimov") return MCRealizationProcedure::kAsimov;
+     else return MCRealizationProcedure::kUndefined;
+   }
+
    // Private methods
    THn* CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator);
-   THn* ApplyResponseMatrix(THn* target, THn* responseMatrix); 
+   THn* ApplyResponseMatrix(const THn* target, const THn* responseMatrix); 
 };
 
 } // namespace mst

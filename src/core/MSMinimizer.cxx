@@ -68,6 +68,34 @@ TMinuit* MSMinimizer::InitializeMinuit (int verbosity, double errVal)
    // Fixed the pointer to the global parameter list
    fGlobalParMap = fModelVector->at(0)->GetParameters();
 
+   // Initialize the propagator inputs container
+   size_t i = 0;
+   for (const auto& par : *fGlobalParMap) {
+     if (par.second->IsOscillation() == false) {i++; continue;}
+
+     TString parName = par.first;
+     if ( parName.Contains("Theta12") ) {
+       fPropagatorInputs.x12 = par.second->GetFitStartValue();
+       fPropagatorInputs.ix12 = i;
+     } else if ( parName.Contains("Theta13")) {
+       fPropagatorInputs.x13 = par.second->GetFitStartValue();
+       fPropagatorInputs.ix13 = i;
+     } else if ( parName.Contains("Theta23") ) {
+       fPropagatorInputs.x23 = par.second->GetFitStartValue();
+       fPropagatorInputs.ix23 = i;
+     } else if ( parName.Contains("deltaCP") ) {
+       fPropagatorInputs.dcp = par.second->GetFitStartValue();
+       fPropagatorInputs.idcp = i;
+     } else if ( parName.Contains("dm21")  ) {
+       fPropagatorInputs.dm21 = par.second->GetFitStartValue();
+       fPropagatorInputs.idm21 = i;
+     } else if ( parName.Contains("dm32") ) {
+       fPropagatorInputs.dm32 = par.second->GetFitStartValue();
+       fPropagatorInputs.idm32 = i;
+     }
+     i++;
+   }
+
    // Initialize minuit
    delete fMinuit;
    fMinuit = new TMinuit(fGlobalParMap->size());
@@ -245,15 +273,60 @@ void MSMinimizer::Minimize(const std::string& minimizer, bool resetFitStartValue
    double errdef;
    int npari, nparx;
    fMinuit->mnstat(fMinNLL,fEDM,errdef,npari,nparx,fCovQual);
+
+   // update oscillation parameters in the propagator
+   for (const auto& par : *fGlobalParMap) {
+     if (par.second->IsOscillation() == false) continue;
+
+     TString parName = par.first;
+     if ( parName.Contains("Theta12") ) {
+       fPropagatorInputs.x12 = par.second->GetFitBestValue();
+     } else if ( parName.Contains("Theta13")) {
+       fPropagatorInputs.x13 = par.second->GetFitBestValue();
+     } else if ( parName.Contains("Theta23") ) {
+       fPropagatorInputs.x23 = par.second->GetFitBestValue();
+     } else if ( parName.Contains("deltaCP") ) {
+       fPropagatorInputs.dcp = par.second->GetFitBestValue();
+     } else if ( parName.Contains("dm21")  ) {
+       fPropagatorInputs.dm21 = par.second->GetFitBestValue();
+     } else if ( parName.Contains("dm32") ) {
+       fPropagatorInputs.dm32 = par.second->GetFitBestValue();
+     }
+   }
+  
+   UpdateOscillationParameters();
 }
 
-void MSMinimizer::FCNNLLLikelihood(int & /*npar*/, double * /*grad*/,
+void MSMinimizer::FCNNLLLikelihood(int & npar, double * /*grad*/,
       double &fval, double * par, int /*flag*/)
 {
    fval = 0.0;
    MSModelVector* modelVector = global_pointer->fModelVector;
    NeutrinoPropagator* propagator = global_pointer->fNeutrinoPropagator;
+   PropagatorInputs_t& propagator_inputs = global_pointer->fPropagatorInputs;
+
+   propagator_inputs.SetParameters( par );
+
+   propagator->SetMNS(propagator_inputs.x12, propagator_inputs.x13,
+                      propagator_inputs.x23, 
+                      propagator_inputs.dm21, propagator_inputs.dm32,
+                      propagator_inputs.dcp,
+                      1.0, // Energy placeholder
+                      propagator_inputs.useSinSq, propagator_inputs.nubar);
+
    for (const auto& i : *modelVector) fval += i->NLogLikelihood(par, propagator);
+}
+
+void MSMinimizer::UpdateOscillationParameters() {
+  if (!fNeutrinoPropagator) return;
+
+  fNeutrinoPropagator->SetMNS(fPropagatorInputs.x12, fPropagatorInputs.x13,
+                              fPropagatorInputs.x23, 
+                              fPropagatorInputs.dm21, fPropagatorInputs.dm32,
+                              fPropagatorInputs.dcp,
+                              1.0, // Energy placeholder
+                              fPropagatorInputs.useSinSq, fPropagatorInputs.nubar);
+  return;
 }
 
 } // namespace mst

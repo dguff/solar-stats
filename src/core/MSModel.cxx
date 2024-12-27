@@ -106,7 +106,8 @@ unsigned int MSModel::GetParameterIndex(const std::string& localName) const
 {
    MSParameterMap::const_iterator it = GetParameterIterator(localName);
    MSParameterMap::const_iterator it0 = fParameters->begin();
-   return std::distance(it0, it);
+   unsigned int i = std::distance(it0, it);
+   return i;
 }
 
 } // namespace mst

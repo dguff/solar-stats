@@ -21,6 +21,8 @@
 #include "TFile.h"
 #include "THnBase.h"
 #include "TH1D.h"
+#include "TCanvas.h"
+#include "TH2D.h"
 #include "TF1.h"
 #include "TROOT.h"
 
@@ -104,7 +106,7 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
    // find hist by name
    PDFMap::iterator im = fPDFMap->find(histName);
    if (im == fPDFMap->end()) {
-      std::cerr << "error: PDF not loaded\n";
+      std::cerr << "error: PDF with name " << histName.c_str() << " not loaded\n";
       return;
    }
    // check if the temporary PDF exist already
@@ -126,7 +128,12 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
       } 
       else {
         hn_osc = CreateOscillogramHD(im->second, propagator); 
+        new TCanvas(); 
+        hn_osc->Projection(1, 0)->Draw("colz"); 
+        gPad->Update(); 
+        getchar(); 
       }
+        
 
       if ( im->second->GetRespMatrix() ) {
         hn = ApplyResponseMatrix(hn_osc, im->second->GetRespMatrix());
@@ -143,7 +150,7 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
 
    fTmpPDF->Add(hn, scaling);
 
-   delete hn; 
+   if (im->second->GetRespMatrix()) delete hn;
 }
 
 THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) { 
@@ -155,7 +162,7 @@ THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) {
    return clone;
 }
 
-THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
+THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation, const std::string& procedure_name) {
    // set internal random number generator if set
    TRandom* rndTmpCopy = nullptr;
    if (fRnd != nullptr)  {
@@ -187,15 +194,50 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
    for (int i = 0 ; i < dim; i++) 
       realization->GetAxis(i)->SetRange(first[i],last[i]);
 
+   // Get the method for producing the data realization
+   const MCRealizationProcedure procedure = GetMCRealizationProcedure(procedure_name);
+
    // Fill realizations using n-dimensional method
-   // Note that GetRandom works on the full range of the histograms and cannot
-   // be limited to the user range. That's not a problem since the sampling MUST
-   // be done on all histogram range in order to preserve the the actual rate.
-   // Note that over- and under-flow bins are not considered
-   Double_t rndPoint[dim];
-   for ( int j = 0; j < ctsNum; j++ ) {
-      fTmpPDF->GetRandom(rndPoint, kFALSE);
-      realization->Fill(rndPoint);
+   if (procedure == MCRealizationProcedure::kSampling) {
+     // Note that GetRandom works on the full range of the histograms and cannot
+     // be limited to the user range. That's not a problem since the sampling MUST
+     // be done on all histogram range in order to preserve the the actual rate.
+     // Note that over- and under-flow bins are not considered
+     Double_t rndPoint[dim];
+     for ( int j = 0; j < ctsNum; j++ ) {
+       fTmpPDF->GetRandom(rndPoint, kFALSE);
+       realization->Fill(rndPoint);
+     }
+   }
+   else if (procedure == MCRealizationProcedure::kBinSampling) {
+     fHandler.NormalizeHn(fTmpPDF, ctsNum);
+     auto* iter = realization->CreateIter(true);
+     int coords[dim];
+     Long64_t i = 0;
+     while ( (i = iter->Next(coords)) >= 0 ) {
+       const double expctd_bc = fTmpPDF->GetBinContent(coords);
+       const double rnd_bc = gRandom->Poisson(expctd_bc);
+       realization->SetBinContent(i, rnd_bc);
+     }
+   }
+   else if (procedure == MCRealizationProcedure::kAsimov) {
+     fHandler.NormalizeHn(fTmpPDF, ctsNum);
+     auto* iter = realization->CreateIter(true);
+     int coords[dim];
+     Long64_t i = 0;
+     while ( (i = iter->Next(coords)) >= 0 ) {
+       const double expctd_bc = fTmpPDF->GetBinContent(coords);
+       realization->SetBinContent(i, expctd_bc);
+     }
+   }
+   else {
+     fprintf(stderr, "MSPDFBuilderTHn::GetMCRealizaton ERROR: unknown procedure %s\n", procedure_name.c_str());
+     fprintf(stderr, "MSPDFBuilderTHn::GetMCRealizaton ERROR: available procedures are: sampling, bin_sampling, asimov - fall back to sampling\n");
+     Double_t rndPoint[dim];
+     for ( int j = 0; j < ctsNum; j++ ) {
+       fTmpPDF->GetRandom(rndPoint, kFALSE);
+       realization->Fill(rndPoint);
+     }
    }
 
    if (rndTmpCopy != nullptr) gRandom = rndTmpCopy;
@@ -203,6 +245,13 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation) {
 }
 
 THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator) {
+  printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n"); 
+  printf("Δm12 = %g\n", propagator->GetDeltaMSq21()); 
+  printf("Δm23 = %g\n", propagator->GetDeltaMSq32()); 
+  printf("sin²θ12 = %g\n", propagator->GetSinSqTheta12()); 
+  printf("sin²θ13 = %g\n", propagator->GetSinSqTheta13()); 
+  printf("sin²θ23 = %g\n", propagator->GetSinSqTheta23()); 
+  getchar(); 
   const int ndim = 2; 
   const THnBase* pdfHn = pdf->GetTHn();
   const MSTHnHandler::axis& axis_nadir = fHandler.GetAxes().at(1); 
@@ -215,13 +264,16 @@ THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* pro
   oscillogram->GetAxis(0)->SetRangeUser(2.5, 20.0); 
   auto* it = oscillogram->CreateIter(true);
 
-  int* coords = new int[ndim];
+  int coords[ndim];
   Long64_t i = 0;
   while( (i = it->Next(coords)) >= 0 ) 
   {
     const double nu_ene  = pdfHn->GetAxis(0)->GetBinCenter( coords[0] );
     const double nu_flux = pdfHn->GetBinContent( &coords[0] );
-    const double cos_nad = fNadirPDF->GetBinContent( coords[1] );
+    const double cos_nad = oscillogram->GetAxis(1)->GetBinCenter( coords[1] );
+    const double cos_nad_x0 = oscillogram->GetAxis(1)->GetBinLowEdge( coords[1] );
+    const double cos_nad_x1 = oscillogram->GetAxis(1)->GetBinUpEdge( coords[1] );
+    const double cos_nad_exposure = fNadirPDF->Integral( cos_nad_x0, cos_nad_x1 ) / (cos_nad_x1 - cos_nad_x0);
     propagator->SetEnergy( nu_ene ); 
     propagator->DefinePath( cos_nad, 1.47e8 ); 
     propagator->propagate( 1 );
@@ -233,17 +285,20 @@ THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* pro
     double f_3 = propagator->GetSinSqTheta13(); 
     double surv = (1 - f_2 - f_3) * p11 + f_2 * p21 + f_3 * p31;
 
-    oscillogram->SetBinContent( coords, nu_flux * surv * cos_nad ); 
+    printf("oscillogram: coords = (%d, %d), nu_ene = %g, nu_flux = %g, cos_nad = %g, cos_nad_exposure = %g, p11 = %g, p21 = %g, p31 = %g, surv = %g\n", 
+        coords[0], coords[1], nu_ene, nu_flux, cos_nad, cos_nad_exposure, p11, p21, p31, surv);
+
+    oscillogram->SetBinContent( coords, nu_flux * surv * cos_nad_exposure ); 
   }
 
+  getchar();
   fHandler.NormalizeHn( oscillogram ); 
-  delete[] coords;
   delete it;
 
   return oscillogram;
 }
 
-THn* MSPDFBuilderTHn::ApplyResponseMatrix(THn* target, THn* responseMatrix) {
+THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* responseMatrix) {
   // TODO: make these defined in configuration file
   const int iaxis_transform_target = 0; 
   const int iaxis_transform_response = 1; 

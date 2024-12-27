@@ -25,9 +25,16 @@ double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagato
    fPDFBuilder->ResetPDF();
 
    // retrieve parameters from Minuit and compute the total exposure
-   for (int i =0; i < fParNameList->size(); i++) {
-      const double par_cts = GetMinuitParameter(par, fParNameList->at(i));
-      fPDFBuilder->AddHistToPDF(fParNameList->at(i),  par_cts, propagator);
+   //for (int i =0; i < fParNameList->size(); i++) {
+      //const double par_cts = GetMinuitParameter(par, fParNameList->at(i));
+      //fPDFBuilder->AddHistToPDF(fParNameList->at(i),  par_cts, propagator);
+   //}
+   for (const auto& par_itr : *fParameters) {
+     if (par_itr.second->IsInput()) {
+       const std::string par_name = GetLocalName( par_itr.second->GetName() );
+       const double par_cts = GetMinuitParameter(par, par_name);
+       fPDFBuilder->AddHistToPDF(par_name, par_cts, propagator);
+     }
    }
 
    const THn* pdf = fPDFBuilder->GetPDF("tmpPDF");
@@ -44,9 +51,19 @@ double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagato
    // loop over dimensions
    auto it = fDataSet->CreateIter(kTRUE);
    Long64_t i = 0;
-   while ((i = it->Next()) >= 0)
-         logLikelihood += MSMath::LogPoisson(fDataSet->GetBinContent(i), 
-                                             fExposure*pdf->GetBinContent(i));
+   int coords[fDataSet->GetNdimensions()];
+   while ((i = it->Next(coords)) >= 0) {
+     printf("[%i, %i] -> (%g, %g): bc = %g - pdf = %g\n", 
+         coords[0], coords[1], 
+         fDataSet->GetAxis(0)->GetBinCenter(coords[0]),
+         fDataSet->GetAxis(1)->GetBinCenter(coords[1]),
+         fDataSet->GetBinContent(i), 
+         fExposure*pdf->GetBinContent(i));
+     logLikelihood += MSMath::LogPoisson(fDataSet->GetBinContent(i), 
+         fExposure*pdf->GetBinContent(i));
+
+     getchar(); 
+   }
 
    delete pdf;
    delete it;
