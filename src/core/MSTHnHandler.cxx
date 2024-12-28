@@ -130,7 +130,6 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
 
    // rebin
    if (fAxis.size()) {
-
       // check if a rebin is needed
       for (int i = 0; i < fAxis.size(); i++) {
          if (fAxis[i].fNgroup > 1) {
@@ -154,7 +153,7 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
       for (int idim = 0; idim < fAxis.size(); idim++) {
         MSTHnHandler::axis axis_temp;
          if (fAxis.at(idim).fSetRange) {
-           outHist->GetAxis(idim)->SetRangeUser(fAxis[idim].fMin,fAxis[idim].fMax);
+           outHist->GetAxis(idim)->SetRangeUser(fAxis[idim].fRangeMin,fAxis[idim].fRangeMax);
          }
          axis_temp.fMin   = outHist->GetAxis(idim)->GetXmin();
          axis_temp.fMax   = outHist->GetAxis(idim)->GetXmax();
@@ -167,8 +166,8 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
             fAxis.at(idim).print();
             std::cerr << "current settings: \n";
             axis_temp.print();
-
-            fAxis.at(idim) = axis_temp;
+            //fAxis.at(idim) = axis_temp;
+            getchar();
          }
       }
    }

@@ -21,6 +21,7 @@
 #include "MSMinimizer.h"
 
 // Prob3++
+#include "NeutrinoPropagator.h"
 #include "BargerPropagator.h"
 
 namespace mst {
@@ -32,6 +33,9 @@ MSMinimizer::MSMinimizer(const std::string& name) : MSObject(name)
    fModelVector        = new MSModelVector();
    fLocalParMap        = new MSParameterMap();
    fNeutrinoPropagator = new BargerPropagator(); 
+   BargerPropagator* p_local = dynamic_cast<BargerPropagator*>(fNeutrinoPropagator);
+   p_local->UseMassEigenstates(true); 
+   p_local->SetDefaultOctant(23, 2); 
 }
 
 MSMinimizer::~MSMinimizer()

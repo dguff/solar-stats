@@ -3,8 +3,8 @@
     "oscillation" : {
       "parameters" : {
         "dm21"        : {"global" : true, "value": 7.5e-5, "range": [7.0e-5, 8.0e-5], "fixed": false, "fitStep": 0.01, "refVal": 7.5e-5},
-        "dm32"        : {"global" : true, "value": 2.5e-3, "range": [2.0e-3, 3.0e-3], "fixed": true , "fitStep": 0.01, "refVal": 2.5e-3},
-        "sinsqTheta23": {"global" : true, "value": 0.561 , "range": [0.4   , 0.6   ], "fixed": true , "fitStep": 0.01, "refVal": 0.561 },
+        "dm32"        : {"global" : true, "value": 2.5e-3, "range": [1.0e-3, 4.0e-3], "fixed": true , "fitStep": 0.01, "refVal": 2.5e-3},
+        "sinsqTheta23": {"global" : true, "value": 0.561 , "range": [0.2   , 0.8   ], "fixed": true , "fitStep": 0.01, "refVal": 0.561 },
         "sinsqTheta13": {"global" : true, "value": 0.029 , "range": [0.00  , 0.1   ], "fixed": false, "fitStep": 0.01, "refVal": 0.029 },
         "sinsqTheta12": {"global" : true, "value": 0.307 , "range": [0.20  , 0.5   ], "fixed": false, "fitStep": 0.01, "refVal": 0.3   }
       }
@@ -19,15 +19,16 @@
           "nadir_surf" : {"pdf" : ["nadir.root","cos_nadir"]}
         },
         "components" : {
+          "neutron" : {"global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":10, "pdf":["background_pdf.root","neutron"], "injVal":12, "color":  2},
           "b8":   { 
-            "global": false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":6, "pdf":["boron_pdf.root","hflat"], "injVal":7.2, "color":635, 
+            "global": false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":6, "pdf":["boron_pdf.root","hb8"], "injVal":7.2, "color":635, 
             "oscillation" : true, "responseMatrix" : "nueCCresponseMatrix"
           }
         },
         "projectOnAxis": [0,1],
         "axis": { 
-          "0": {"range": [5,12], "rebin" : 1},
-          "1": {"range": [-1,1], "rebin" : 1}
+          "0": {"limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,12], "rebin" : 1},
+          "1": {"limits" : [-1.0,  1.0], "nbins" : 20, "range": [-0.9,0.9], "rebin" : 1}
         },
         "normalizePDFInUserRange": false 
       }

@@ -49,16 +49,19 @@ class MSTHnHandler : public MSObject
        bool   fSetRange = {false};
        double fMin      = {0.0};
        double fMax      = {0.0};
+       double fRangeMin = {0.0};
+       double fRangeMax = {0.0};
        int    fNbins    = {0};
        int    fNgroup   = {1};
        bool operator==(const axis& a) const {
           return fSetRange == a.fSetRange 
             && fMin == a.fMin       && fMax == a.fMax 
+            && fRangeMin == a.fRangeMin && fRangeMax == a.fRangeMax
             && fNbins == a.fNbins   && fNgroup == a.fNgroup;
        }
        void print() const {
-         printf("axis settings: nbins = %d, min = %f, max = %f, ngroup = %d\n", 
-                fNbins, fMin, fMax, fNgroup);
+         printf("axis settings: nbins = %d, min = %f, max = %f, range = [%g, %g] ngroup = %d\n", 
+                fNbins, fMin, fMax, fRangeMin, fRangeMax, fNgroup);
        }
      };
 
@@ -73,11 +76,25 @@ class MSTHnHandler : public MSObject
       }
       
       //! Set the user range of a specific axis
-      void SetRange(const int axisID, const double min, const double max) {
+      inline void SetRange(const int axisID, const double min, const double max) {
+         if (axisID >= fAxis.size()) fAxis.resize(axisID+1);
+         fAxis.at(axisID).fRangeMin = min;
+         fAxis.at(axisID).fRangeMax = max;
+         fAxis.at(axisID).fSetRange = true;
+      }
+
+      //! Set the axis limits for a specific axis for checking consistency between THns
+      inline void SetLimits(const int axisID, const double min, const double max) {
          if (axisID >= fAxis.size()) fAxis.resize(axisID+1);
          fAxis.at(axisID).fMin = min;
          fAxis.at(axisID).fMax = max;
-         fAxis.at(axisID).fSetRange = true;
+         return;
+      }
+
+      //! Set the number of bins for a specific axis
+      inline void SetNbins(const int axisID, const int nbins) {
+         if (axisID >= fAxis.size()) fAxis.resize(axisID+1);
+         fAxis.at(axisID).fNbins = nbins;
       }
 
       //! Rebin a specific axis

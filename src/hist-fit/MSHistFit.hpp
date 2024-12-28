@@ -156,6 +156,12 @@ namespace mst {
           << axis.name.GetString() << endl;              //
         isMemberCorrect(axis.value, "range", "Array", "Number", 2);           // json/fittingModel/dataSets/*/axis/*/range[]
         isMemberCorrect(axis.value, "rebin", "Int");                          // json/fittingModel/dataSets/*/axis/*/rebin
+        if (axis.value.HasMember("limits")) {                                   // optional block:
+          isMemberCorrect(axis.value, "limits", "Array", "Number", 2);                      // json/fittingModel/dataSets/*/axis/*/xmin
+        }
+        if (axis.value.HasMember("nbins")) {                                    // optional block:
+          isMemberCorrect(axis.value, "nbins", "Int");                         // json/fittingModel/dataSets/*/axis/*/nbin
+        }
       }                                                                        // 
       if (dataSet.value.HasMember("normalizePDFInUserRange")) {                // optional block:
         isMemberCorrect(dataSet.value, "normalizePDFInUserRange", "Bool");    // json/fittingModel/dataSets/*/normalizePDFInUserRange
@@ -276,6 +282,14 @@ namespace mst {
           handler.SetRange(axisID, axis.value["range"][0].GetDouble(), 
               axis.value["range"][1].GetDouble());
           handler.Rebin(axisID, axis.value["rebin"].GetInt());
+          if (axis.value.HasMember("limits")) {
+            handler.SetLimits(axisID, 
+                axis.value["limits"][0].GetDouble(), 
+                axis.value["limits"][1].GetDouble());
+          }
+          if (axis.value.HasMember("nbins")) {
+            handler.SetNbins(axisID, axis.value["nbins"].GetInt());
+          }
         }
       }
 
@@ -451,8 +465,8 @@ namespace mst {
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
           ["components"][parName.c_str()]["injVal"].GetDouble();
 
-        //printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
-        //parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
+        parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         totalCounts += trueVal * mod->GetExposure();
       }

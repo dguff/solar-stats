@@ -22,7 +22,7 @@
  * 
  * \details 
  * The object stored in an internal map the histograms registered through the
- * function MSPDFBuilderTHn::LoadHist and then add them to a tmp hist (the final
+ * function MSPDFBuilderTHn::LoadHist/BuildHist and then add them to a tmp hist (the final
  * PDF) when the method MSPDFBuilderTHn::AddHistToPDF is called. A copy of the
  * internal tmp hist can be retrieved with MSPDFBuilderTHn::GetPDF. The internal
  * hist must be reset through the MSPDFBuilderTHn::Reset method
@@ -40,6 +40,7 @@
 
 // ROOT libs
 #include "THn.h"
+#include "TH1D.h"
 #include "TRandom3.h"
 
 // m-stats libs
@@ -130,6 +131,7 @@ class MSPDFBuilderTHn : public MSObject
    // Private methods
    THn* CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator);
    THn* ApplyResponseMatrix(const THn* target, const THn* responseMatrix); 
+   
 };
 
 } // namespace mst

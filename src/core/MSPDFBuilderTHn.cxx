@@ -20,7 +20,6 @@
 // ROOT libs
 #include "TFile.h"
 #include "THnBase.h"
-#include "TH1D.h"
 #include "TCanvas.h"
 #include "TH2D.h"
 #include "TF1.h"
@@ -66,6 +65,15 @@ MSPDFBuilderTHn::~MSPDFBuilderTHn()
 
 void MSPDFBuilderTHn::RegisterNadirPDF(TH1* pdf) {
   fNadirPDF = dynamic_cast<TH1D*>(pdf); 
+  fNadirFun = new TF1("nadir_fun",
+      [this](double* x, double* p) {
+      return p[0]*this->fNadirPDF->Interpolate(x[0]); 
+      }, 
+      fNadirPDF->GetXaxis()->GetXmin(), 
+      fNadirPDF->GetXaxis()->GetXmax(), 
+      1); 
+  fNadirFun->SetParameter(0, 1.0); 
+
   return;
 }
 
@@ -128,12 +136,7 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
       } 
       else {
         hn_osc = CreateOscillogramHD(im->second, propagator); 
-        new TCanvas(); 
-        hn_osc->Projection(1, 0)->Draw("colz"); 
-        gPad->Update(); 
-        getchar(); 
       }
-        
 
       if ( im->second->GetRespMatrix() ) {
         hn = ApplyResponseMatrix(hn_osc, im->second->GetRespMatrix());
@@ -141,11 +144,12 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
 
       delete hn_osc;
    }
-
-   if (im->second->GetRespMatrix()) {
-      hn = ApplyResponseMatrix(im->second->GetTHn(), im->second->GetRespMatrix());
-   } else {
-      hn = im->second->GetTHn();
+   else {
+     if (im->second->GetRespMatrix()) {
+       hn = ApplyResponseMatrix(im->second->GetTHn(), im->second->GetRespMatrix());
+     } else {
+       hn = im->second->GetTHn();
+     }
    }
 
    fTmpPDF->Add(hn, scaling);
@@ -187,7 +191,7 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation, co
       max[i]   = fTmpPDF->GetAxis(i)->GetXmax();
    }
 
-   THn* realization = new THnI (Form("mc_seed_%u",gRandom->GetSeed()),
+   THn* realization = new THnD (Form("mc_seed_%u",gRandom->GetSeed()),
                                 Form("mc_seed_%u",gRandom->GetSeed()),
                                 dim, bin, min, max);
 
@@ -219,6 +223,7 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation, co
        const double rnd_bc = gRandom->Poisson(expctd_bc);
        realization->SetBinContent(i, rnd_bc);
      }
+     delete iter;
    }
    else if (procedure == MCRealizationProcedure::kAsimov) {
      fHandler.NormalizeHn(fTmpPDF, ctsNum);
@@ -229,6 +234,7 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation, co
        const double expctd_bc = fTmpPDF->GetBinContent(coords);
        realization->SetBinContent(i, expctd_bc);
      }
+     delete iter;
    }
    else {
      fprintf(stderr, "MSPDFBuilderTHn::GetMCRealizaton ERROR: unknown procedure %s\n", procedure_name.c_str());
@@ -245,23 +251,35 @@ THn* MSPDFBuilderTHn::GetMCRealizaton(int ctsNum, bool addPoissonFluctuation, co
 }
 
 THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator) {
-  printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n"); 
-  printf("Δm12 = %g\n", propagator->GetDeltaMSq21()); 
-  printf("Δm23 = %g\n", propagator->GetDeltaMSq32()); 
-  printf("sin²θ12 = %g\n", propagator->GetSinSqTheta12()); 
-  printf("sin²θ13 = %g\n", propagator->GetSinSqTheta13()); 
-  printf("sin²θ23 = %g\n", propagator->GetSinSqTheta23()); 
-  getchar(); 
-  const int ndim = 2; 
+  //printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n"); 
+  //printf("Δm12 = %g\n", propagator->GetDeltaMSq21()); 
+  //printf("Δm23 = %g\n", propagator->GetDeltaMSq32()); 
+  //printf("sin²θ12 = %g\n", propagator->GetSinSqTheta12()); 
+  //printf("sin²θ13 = %g\n", propagator->GetSinSqTheta13()); 
+  //printf("sin²θ23 = %g\n", propagator->GetSinSqTheta23()); 
+  //getchar(); 
+  const int ndim = fHandler.GetAxes().size(); 
   const THnBase* pdfHn = pdf->GetTHn();
-  const MSTHnHandler::axis& axis_nadir = fHandler.GetAxes().at(1); 
-  const int nbin[ndim] = {pdfHn->GetAxis(0)->GetNbins(), axis_nadir.fNbins}; 
-  const double xmin[ndim] = {pdfHn->GetAxis(0)->GetXmin(), axis_nadir.fMin};
-  const double xmax[ndim] = {pdfHn->GetAxis(0)->GetXmax(), axis_nadir.fMax}; 
+  MSTHnHandler::axis axes[ndim];
+  axes[0].fNbins = pdfHn->GetAxis(0)->GetNbins();
+  axes[0].fMin = pdfHn->GetAxis(0)->GetXmin();
+  axes[0].fMax = pdfHn->GetAxis(0)->GetXmax();
+  axes[1] = fHandler.GetAxes().at(1);
 
-  THnD *oscillogram = new THnD("oscillogram", "oscillogram", ndim, nbin, xmin, xmax);
+  int nbins[ndim];
+  double xmin[ndim];
+  double xmax[ndim];
+
+  for (int i = 0; i < ndim; i++) {
+    nbins[i] = axes[i].fNbins;
+    xmin[i] = axes[i].fMin;
+    xmax[i] = axes[i].fMax;
+  }
+
+  THnD *oscillogram = new THnD("oscillogram", "oscillogram", ndim, nbins, xmin, xmax);
   
   oscillogram->GetAxis(0)->SetRangeUser(2.5, 20.0); 
+  oscillogram->GetAxis(1)->SetRangeUser(-1.0, 1.0); 
   auto* it = oscillogram->CreateIter(true);
 
   int coords[ndim];
@@ -273,8 +291,9 @@ THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* pro
     const double cos_nad = oscillogram->GetAxis(1)->GetBinCenter( coords[1] );
     const double cos_nad_x0 = oscillogram->GetAxis(1)->GetBinLowEdge( coords[1] );
     const double cos_nad_x1 = oscillogram->GetAxis(1)->GetBinUpEdge( coords[1] );
-    const double cos_nad_exposure = fNadirPDF->Integral( cos_nad_x0, cos_nad_x1 ) / (cos_nad_x1 - cos_nad_x0);
-    propagator->SetEnergy( nu_ene ); 
+    const double dcn = cos_nad_x1 - cos_nad_x0;
+    const double cos_nad_exposure = fNadirFun->Integral( cos_nad_x0, cos_nad_x1 ) * 1000.0 / dcn;
+    propagator->SetEnergy( nu_ene*1e-3 ); 
     propagator->DefinePath( cos_nad, 1.47e8 ); 
     propagator->propagate( 1 );
     const double p11 = propagator->GetProb(1, 1); 
@@ -285,14 +304,10 @@ THn* MSPDFBuilderTHn::CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* pro
     double f_3 = propagator->GetSinSqTheta13(); 
     double surv = (1 - f_2 - f_3) * p11 + f_2 * p21 + f_3 * p31;
 
-    printf("oscillogram: coords = (%d, %d), nu_ene = %g, nu_flux = %g, cos_nad = %g, cos_nad_exposure = %g, p11 = %g, p21 = %g, p31 = %g, surv = %g\n", 
-        coords[0], coords[1], nu_ene, nu_flux, cos_nad, cos_nad_exposure, p11, p21, p31, surv);
-
     oscillogram->SetBinContent( coords, nu_flux * surv * cos_nad_exposure ); 
   }
 
-  getchar();
-  fHandler.NormalizeHn( oscillogram ); 
+  fHandler.NormalizeHn( oscillogram );
   delete it;
 
   return oscillogram;
@@ -303,7 +318,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* respons
   const int iaxis_transform_target = 0; 
   const int iaxis_transform_response = 1; 
 
-  THn* product = fHandler.CreateHn();
+  THnD* product = static_cast<THnD*>(fHandler.CreateHn());
   product->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName())); 
 
   const int ndim_target = target->GetNdimensions(); 
@@ -314,23 +329,37 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* respons
   int ibprod[2] = {0, 0}; 
 
   const int nbins_target = target->GetAxis(iaxis_transform_target)->GetNbins(); 
-  const int nbins_product = product->GetAxis(iaxis_transform_response)->GetNbins(); 
+  const int nbins_product = product->GetAxis(iaxis_transform_target)->GetNbins(); 
 
   double response = 0.0; 
 
-  for (size_t n=1; n<=product->GetAxis(1)->GetNbins(); n++) {
+  for (size_t n=1; n<=product->GetAxis(1)->GetNbins(); n++) { // nadir bins loop
     ibtarget[1] = n; 
     ibprod[1] = n; 
-    for (size_t i = 1; i <= nbins_target; i++) {
-      ibresp[0] = i; 
-      for (size_t j = 1; j <= nbins_product; j++) {
+    for (size_t i = 1; i <= nbins_target; i++) { // true energy bins loop
+      ibresp[0] = i;
+      ibtarget[0] = i;
+      for (size_t j = 1; j <= nbins_product; j++) { // reco energy bins loop
         ibresp[1] = j; 
+        ibprod[0] = j;
         response = responseMatrix->GetBinContent(ibresp); 
-        if (response > 0) {
-          product->AddBinContent(ibprod, target->GetBinContent(ibtarget) * response);
+        if (response > 0 ) {
+          double target_val = target->GetBinContent(ibtarget);
+          if (target_val > 0) {
+            product->AddBinContent(ibprod, target_val * response);
+          }
         }
       }
     }
+  }
+
+  // Apply axis settings as defined in the THn handler
+  size_t idim = 0; 
+  for (const auto& axis : fHandler.GetAxes()) {
+    if (axis.fSetRange) {
+      product->GetAxis(idim)->SetRangeUser(axis.fRangeMin, axis.fRangeMax);
+    }
+    idim++;
   }
 
   return product;

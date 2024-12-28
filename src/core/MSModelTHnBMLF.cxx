@@ -53,16 +53,14 @@ double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagato
    Long64_t i = 0;
    int coords[fDataSet->GetNdimensions()];
    while ((i = it->Next(coords)) >= 0) {
-     printf("[%i, %i] -> (%g, %g): bc = %g - pdf = %g\n", 
-         coords[0], coords[1], 
-         fDataSet->GetAxis(0)->GetBinCenter(coords[0]),
-         fDataSet->GetAxis(1)->GetBinCenter(coords[1]),
-         fDataSet->GetBinContent(i), 
-         fExposure*pdf->GetBinContent(i));
+     //printf("[%i, %i] -> (%g, %g): bc = %g - pdf = %g\n", 
+         //coords[0], coords[1], 
+         //fDataSet->GetAxis(0)->GetBinCenter(coords[0]),
+         //fDataSet->GetAxis(1)->GetBinCenter(coords[1]),
+         //fDataSet->GetBinContent(i), 
+         //fExposure*pdf->GetBinContent(i));
      logLikelihood += MSMath::LogPoisson(fDataSet->GetBinContent(i), 
          fExposure*pdf->GetBinContent(i));
-
-     getchar(); 
    }
 
    delete pdf;
