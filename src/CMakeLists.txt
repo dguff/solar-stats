@@ -37,12 +37,19 @@ endif()
 find_package(ROOT REQUIRED COMPONENTS RIO Core)
 find_package(RapidJSON REQUIRED)
 find_package(Prob3plusplus REQUIRED)
+find_library(MARLEY
+  NAMES MARLEY
+  PATHS "${MARLEY_DIR}/build"
+  REQUIRED
+  NO_DEFAULT_PATH
+  )
 
 include(${ROOT_USE_FILE})
 include_directories(
   ${RapidJSON_INCLUDE_DIR}/..
   ${ROOT_INCLUDE_DIRS}
   ${Prob3plusplus_INCLUDE_DIR}
+  ${MARLEY_DIR}/include
 )
 
 #----------------------------------------------------------------------------

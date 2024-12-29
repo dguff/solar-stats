@@ -56,6 +56,9 @@ MSPDFBuilderTHn::~MSPDFBuilderTHn()
     fRespMatrixMap->clear();
   }
 
+  fMarleyGen.clear();
+
+  if (fOscillogram) delete fOscillogram;
   if (fNadirPDF) delete fNadirPDF; 
   if (fNadirFun) delete fNadirFun; 
 
@@ -125,9 +128,63 @@ void MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, 
       ResetPDF();
    }
 
-   // Add hist to pdf with scaling factor
+   EPDFType pdfType = im->second->GetPDFType();
    THn* hn = nullptr; 
-   THn* hn_osc = nullptr;
+   bool response_matrix_applied = false; 
+
+   if ( pdfType == EPDFType::kComponent ) {
+   }
+
+   switch (pdfType) {
+     default:
+       {
+         fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: PDF type not set for %s\n", histName.data());
+         exit(EXIT_FAILURE);
+         break;
+       } 
+     case (EPDFType::kUndefined):
+       {
+         fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: PDF type undefined for %s\n", histName.data());
+         exit(EXIT_FAILURE);
+         break;
+       }
+     case  (EPDFType::kComponent) : 
+       {
+         MSTHnPDFComponent* pdf = dynamic_cast<MSTHnPDFComponent*>(im->second);
+         if (pdf->GetRespMatrix()) {
+           hn = ApplyResponseMatrix(im->second->GetTHn(), pdf->GetRespMatrix());
+         } else {
+           hn = im->second->GetTHn();
+         }
+       }
+     case  (EPDFType::kNeutrino) : 
+       {
+         MSTHnPDFNeutrino* pdf = dynamic_cast<MSTHnPDFNeutrino*>(im->second);
+         if (pdf->ApplyOscillation()) {
+           if (propagator == nullptr) {
+             fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator associated with %s\n", 
+                 histName.c_str());
+             exit(EXIT_FAILURE); 
+           } 
+           else {
+             fOscillogram = CreateOscillogramHD(im->second, propagator); 
+           }
+
+
+           delete hn;
+         }
+         else {
+           if (im->second->GetRespMatrix()) {
+             hn = ApplyResponseMatrix(im->second->GetTHn(), im->second->GetRespMatrix());
+           } else {
+             hn = im->second->GetTHn();
+           }
+         }
+
+       }
+   }
+
+   // Add hist to pdf with scaling factor
    if (im->second->ApplyOscillation()) {
       if (propagator == nullptr) {
         fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator associated with %s\n", 

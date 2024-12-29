@@ -17,12 +17,16 @@
 #include "TFile.h"
 #include "TBranch.h"
 #include "TTree.h"
-
 #include "TStyle.h"
 
 // rapidjson's DOM-style API
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/prettywriter.h"
+
+// MARLEY
+#include "marley/RootJSONConfig.hh"
 
 // m-stats libs
 #include "MSPDFBuilderTHn.h"
@@ -135,6 +139,7 @@ namespace mst {
       for (const auto& component : dataSet.value["components"].GetObject()) {  // json/fittingModel/dataSets/*/components/*
         if (verbose) cout << "info: checking component "                      //
           << component.name.GetString() << endl;              //
+        isMemberCorrect(component.value, "type", "String");                   // json/fittingModel/dataSets/*/components/*/type
         isMemberCorrect(component.value, "global", "Bool");                   // json/fittingModel/dataSets/*/components/*/global
         isMemberCorrect(component.value, "refVal", "Number");                 // json/fittingModel/dataSets/*/components/*/refVal
         isMemberCorrect(component.value, "range", "Array", "Number", 2);      // json/fittingModel/dataSets/*/components/*/range[]
@@ -142,9 +147,26 @@ namespace mst {
         isMemberCorrect(component.value, "pdf", "Array", "String", 2);        // json/fittingModel/dataSets/*/components/*/pdf[]
         isMemberCorrect(component.value, "injVal", "Number");                 // json/fittingModel/dataSets/*/components/*/injVal
         isMemberCorrect(component.value, "color", "Int");                     // json/fittingModel/dataSets/*/components/*/color
-        if (component.value.HasMember("oscillation")) {                       // 
-          isMemberCorrect(component.value, "oscillation", "Bool");           // json/fittingModel/dataSets/*/components/*/oscillation
-        }                                                                     //
+        const string type = component.value["type"].GetString();              
+        if ( std::strcmp(type.c_str(), "neutrino") == 0 ) {                    
+          if (component.value.HasMember("oscillation")) {                       // 
+            isMemberCorrect(component.value, "oscillation", "Bool");           // json/fittingModel/dataSets/*/components/*/oscillation
+          }
+          isMemberCorrect(component.value, "channels", "Object");     // json/fittingModel/dataSets/*/components/*/channels[]
+          for (const auto& channel : component.value["channels"].GetObject()) { // json/fittingModel/dataSets/*/components/*/channels/*
+            isMemberCorrect(channel.value, "responseMatrix", "String");         // json/fittingModel/dataSets/*/components/*/channels/*/responseMatrix
+            isMemberCorrect(channel.value, "crossSection", "Object");           // json/fittingModel/dataSets/*/components/*/channels/*/crossSection
+            const auto& jcrossSection = channel.value["crossSection"];            //
+            isMemberCorrect(jcrossSection, "target", "Object");   // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/target
+            const rapidjson::Value& jtarget = jcrossSection["target"];
+            isMemberCorrect(jtarget, "nuclides", "Array", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/target/nuclides[]
+            isMemberCorrect(jtarget, "atom_fractions", "Array", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/target/atom_fractions[]
+            isMemberCorrect(jcrossSection, "reaction", "String");       // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/reaction
+            isMemberCorrect(jcrossSection, "source", "Object");         // json/fittingModel/dataSets/*/components/*/channels/*/crossSecrion/*/source
+            isMemberCorrect(jcrossSection["source"], "neutrino", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/source/neutrino
+          }
+        } // end of neutrino block
+                                                                             //
         if (component.value.HasMember("responseMatrix")) {                    // 
           isMemberCorrect(component.value, "responseMatrix", "String");      // json/fittingModel/dataSets/*/components/*/responseMatrix
         }                                                                     //
@@ -209,6 +231,39 @@ namespace mst {
     }
 
     return json;
+  }
+
+  inline std::string BuildMARLEYGeneratorConfig(const rapidjson::Value& jcrossSection, long int run_seed) {
+    rapidjson::Document mdoc; 
+    rapidjson::Document::AllocatorType& allocator = mdoc.GetAllocator(); 
+    mdoc.CopyFrom(jcrossSection, allocator);
+    mdoc["source"].AddMember("type", "monoenergetic", allocator);
+
+    FILE* marley_cfg_tmp; 
+    char writeBuffer[65536];
+    char filePathBuffer[200]; 
+    std::snprintf(filePathBuffer, 200, "/tmp/solarstats_marley_config%ld.json", run_seed);
+    std::string marley_cfg_path = filePathBuffer;
+    marley_cfg_tmp = std::fopen(marley_cfg_path.data(), "w"); 
+    rapidjson::FileWriteStream buffer(marley_cfg_tmp, writeBuffer, sizeof(writeBuffer)); 
+    rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(buffer); 
+    mdoc.Accept(writer);
+    fclose(marley_cfg_tmp); 
+
+    printf("Setting up marley generator with configuration:\n");
+    std::ifstream tmp_file(marley_cfg_path.data());  // Apri il file
+
+    if (!tmp_file.is_open()) {
+      std::cerr << "Unable to open temporary marley configuration file" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    std::string line;
+    while (std::getline(tmp_file, line)) {
+      std::cout << line << std::endl;
+    }
+    tmp_file.close();
+
+    return filePathBuffer;
   }
 
   /* 
@@ -372,22 +427,70 @@ namespace mst {
         if (pathToFile != "") pathToFile += "/";
         pathToFile +=component.value["pdf"][0].GetString();
 
-        MSTHnPDF* pdf = new MSTHnPDF(component.name.GetString());
-        if (component.value.HasMember("responseMatrix")) {
-          pdf->SetTHn( handler.LoadHist( pathToFile.Data(),
-                component.value["pdf"][1].GetString(),
-                component.name.GetString()) );
-          pdf->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
-        }
-        else {
-          pdf->SetTHn( handler.BuildHist( pathToFile.Data(),
-                component.value["pdf"][1].GetString(),
-                component.name.GetString(),
-                true));
-        }
+        EPDFType pdfType = get_pdf_type_code(component.value["type"].GetString());
+        MSTHnPDF* pdf = nullptr;
+        
 
-        if (component.value.HasMember("oscillation")) {
-          pdf->SetApplyOscillation(true);
+        switch (pdfType) {
+          case kComponent: 
+            {
+              MSTHnPDFComponent* pdf_ = new MSTHnPDFComponent(component.name.GetString());
+              pdf_->SetPDFType(pdfType);
+
+              if (component.value.HasMember("responseMatrix")) {
+                pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+                      component.value["pdf"][1].GetString(),
+                      component.name.GetString()) );
+                pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
+              }
+              else {
+                pdf_->SetTHn( handler.BuildHist( pathToFile.Data(),
+                      component.value["pdf"][1].GetString(),
+                      component.name.GetString(),
+                      true));
+              }
+              pdf = pdf_;
+              break;
+            }
+
+          case kNeutrino: 
+            {
+              MSTHnPDFNeutrino* pdf_ = new MSTHnPDFNeutrino(component.name.GetString());
+              pdf_->SetPDFType(pdfType);
+              if (component.value.HasMember("oscillation")) {
+                pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
+              }
+              pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+                    component.value["pdf"][1].GetString(),
+                    component.name.GetString()) );
+
+              for (const auto& jchannel : component.value["channels"].GetObject()) {
+                const string channelName = jchannel.name.GetString();
+                const string respMatrixName = jchannel.value["responseMatrix"].GetString();
+                MSTHnPDFNeutrino::NuIntChannel_t& channel = pdf_->AddChannel(channelName, respMatrixName); 
+
+                const rapidjson::Value& jcrossSection = jchannel.value["crossSection"];
+                const std::string gen_config = BuildMARLEYGeneratorConfig(jcrossSection, json["MC"]["seed"].GetInt());
+                pdfBuilder->SetupMarleyGenerator(channelName, gen_config);
+
+                pdfBuilder->EvaluateTotalCrossSection( channelName, pdf_ ); 
+                pdf = pdf_; 
+              }
+
+              break;
+            }
+
+          case kUndefined:
+            {
+              std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf type undefined\n";
+              exit(EXIT_FAILURE);
+            }
+
+          default:
+            {
+              std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf not set\n";
+              exit(EXIT_FAILURE);
+            }
         }
 
         pdfBuilder->RegisterPDF( pdf );
@@ -465,8 +568,8 @@ namespace mst {
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
           ["components"][parName.c_str()]["injVal"].GetDouble();
 
-        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
-        parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        //printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
+        //parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         totalCounts += trueVal * mod->GetExposure();
       }

@@ -47,7 +47,13 @@
 #include "MSTHnPDF.h"
 #include "MSTHnHandler.h"
 #include "MSObject.h"
+
+// Prob3++
 #include "NeutrinoPropagator.h"
+
+// MARLEY
+#include "marley/RootJSONConfig.hh"
+#include "marley/Generator.hh"
 
 namespace mst {
 
@@ -98,6 +104,31 @@ class MSPDFBuilderTHn : public MSObject
    //! Get the response matrix
    inline THn* GetResponseMatrix(const std::string& name) { return fRespMatrixMap->at(name); }
 
+   //! Setup a MARLEY generator for a given interaction channel
+   inline void SetupMarleyGenerator(const std::string& channel, const std::string& config) {
+     ::marley::RootJSONConfig cfg(config);
+     fMarleyGen.emplace(channel, cfg.create_generator());
+   }
+   inline void EvaluateTotalCrossSection(const std::string& channel, MSTHnPDFNeutrino* pdf) {
+     MSTHnPDFNeutrino::NuIntChannel_t& ch = pdf->GetChannel(channel);
+     ch.fCrossSection.clear();
+     const TAxis* energy_axis = pdf->GetTHn()->GetAxis(0);
+     ch.fCrossSection.resize( energy_axis->GetNbins() );
+     const marley::Generator& gen = fMarleyGen.at(channel);
+     const int pdg = gen.get_source().get_pid();
+     for (int i = 1; i <= energy_axis->GetNbins(); i++) {
+       const double energy = energy_axis->GetBinCenter(i);
+       if (energy < 0) {
+         ch.fCrossSection[i-1] = 0;
+       }
+       else {
+         double xsec = gen.total_xs( pdg, energy );
+         xsec *= marley_utils::hbar_c2 * marley_utils::fm2_to_minus40_cm2 * 1e2;
+         ch.fCrossSection[i-1] = xsec;
+       }
+     }
+   }
+
    //! Get the hist handler
    inline MSTHnHandler& GetHistHandler() { return fHandler; }
 
@@ -112,8 +143,12 @@ class MSPDFBuilderTHn : public MSObject
    TF1* fNadirFun {nullptr};
    //! Temporary PDF
    THn* fTmpPDF {nullptr};
+   //! Oscillogram
+   THn* fOscillogram {nullptr};
    //! Pseudo-random number generator
    TRandom* fRnd {nullptr};
+   //! Marley generator
+   std::map<std::string, marley::Generator> fMarleyGen; 
    //! Hist handler
    MSTHnHandler fHandler;
 
