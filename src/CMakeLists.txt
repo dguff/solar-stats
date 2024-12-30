@@ -43,6 +43,13 @@ find_library(MARLEY
   REQUIRED
   NO_DEFAULT_PATH
   )
+find_library(MARLEY_ROOT
+  NAMES MARLEY_ROOT
+  PATHS "${MARLEY_DIR}/build"
+  REQUIRED
+  NO_DEFAULT_PATH
+  )
+
 
 include(${ROOT_USE_FILE})
 include_directories(

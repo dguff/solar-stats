@@ -53,6 +53,7 @@ class MSTHnHandler : public MSObject
        double fRangeMax = {0.0};
        int    fNbins    = {0};
        int    fNgroup   = {1};
+       std::string fLabel = {""};
        bool operator==(const axis& a) const {
           return fSetRange == a.fSetRange 
             && fMin == a.fMin       && fMax == a.fMax 
@@ -60,8 +61,8 @@ class MSTHnHandler : public MSObject
             && fNbins == a.fNbins   && fNgroup == a.fNgroup;
        }
        void print() const {
-         printf("axis settings: nbins = %d, min = %f, max = %f, range = [%g, %g] ngroup = %d\n", 
-                fNbins, fMin, fMax, fRangeMin, fRangeMax, fNgroup);
+         printf("axis settings: label: %s, nbins = %d, min = %f, max = %f, range = [%g, %g] ngroup = %d\n", 
+                fLabel.data(), fNbins, fMin, fMax, fRangeMin, fRangeMax, fNgroup);
        }
      };
 
@@ -81,6 +82,12 @@ class MSTHnHandler : public MSObject
          fAxis.at(axisID).fRangeMin = min;
          fAxis.at(axisID).fRangeMax = max;
          fAxis.at(axisID).fSetRange = true;
+      }
+
+      //! Set the label of a specific axis
+      void inline SetLabel(const int axisID, const std::string& label) {
+         if (axisID >= fAxis.size()) fAxis.resize(axisID+1);
+         fAxis.at(axisID).fLabel = label;
       }
 
       //! Set the axis limits for a specific axis for checking consistency between THns
@@ -113,7 +120,8 @@ class MSTHnHandler : public MSObject
       //! Load histogram from file, withour further manipulation
       THn* LoadHist(const std::string& filename, 
                     const std::string& histName, 
-                    const std::string& newHistName); 
+                    const std::string& newHistName, 
+                    const bool normalize = false); 
 
       //! Load histogram from file, manipulate it and return a copy
       THn* BuildHist(const std::string& fileName, 

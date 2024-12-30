@@ -31,7 +31,8 @@ namespace mst {
 
 THn* MSTHnHandler::LoadHist( const std::string& fileName, 
                              const std::string& histName, 
-                             const std::string& newHistName ) 
+                             const std::string& newHistName, 
+                             const bool normalize) 
 {
    // Get pointer of the file 
    TFile inputFile(fileName.c_str(), "READ");
@@ -69,6 +70,8 @@ THn* MSTHnHandler::LoadHist( const std::string& fileName,
 
    outHist->SetTitle(newHistName.c_str());
    outHist->SetName(newHistName.c_str());
+
+   if (normalize) NormalizeHn(outHist);
 
    return outHist;
 }

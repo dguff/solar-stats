@@ -37,7 +37,8 @@ set(SSTATS_CORE_SOURCES
 add_library(sstats-core SHARED
   ${SSTATS_CORE_SOURCES} ${SSTATS_CORE_HEADERS}
 )
-target_link_libraries(sstats-core PRIVATE ${ROOT_LIBRARIES} Prob3plusplus::All)
+target_link_libraries(sstats-core 
+  PRIVATE ${ROOT_LIBRARIES} Prob3plusplus::All ${MARLEY} ${MARLEY_ROOT})
 target_include_directories(sstats-core
   PUBLIC
   $<BUILD_INTERFACE:${SSTATS_CORE_DIR}>

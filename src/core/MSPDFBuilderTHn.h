@@ -87,7 +87,7 @@ class MSPDFBuilderTHn : public MSObject
    void RegisterResponseMatrix(THn*);
 
    //! Add scaled histogram to tmp PDF
-   void AddHistToPDF(const std::string& histName, double scaling = 1, NeutrinoPropagator* propagator = nullptr);
+   double AddHistToPDF(const std::string& histName, double scaling = 1, NeutrinoPropagator* propagator = nullptr);
 
    //! Set Seed
    void SetSeed(unsigned int seed) { delete fRnd; fRnd = new TRandom3(seed); }
@@ -98,17 +98,28 @@ class MSPDFBuilderTHn : public MSObject
    //! Get copy of tmp PDF and reset tmpPDF
    THn* GetPDF (const std::string& objName);
 
+   //! Check is model compoment is a neutrino or a standard component
+   bool IsNeutrino(const std::string& name) const {
+      const EPDFType pdfType = fPDFMap->at(name)->GetPDFType();
+      if (pdfType == EPDFType::kNeutrino) return true;
+      else return false;
+   }
+
    //! Get MC realization extracted by tmpPDF
    THn* GetMCRealizaton(int ctsNum, const bool addPoissonFluctuation = false, const string& procedure_name = "sampling");
 
    //! Get the response matrix
    inline THn* GetResponseMatrix(const std::string& name) { return fRespMatrixMap->at(name); }
 
+   //! Delete the oscillation prob 
+   inline void ClearOscillationProb() { if (fOscillogram) delete fOscillogram; fOscillogram = nullptr; }
+
    //! Setup a MARLEY generator for a given interaction channel
    inline void SetupMarleyGenerator(const std::string& channel, const std::string& config) {
      ::marley::RootJSONConfig cfg(config);
      fMarleyGen.emplace(channel, cfg.create_generator());
    }
+
    inline void EvaluateTotalCrossSection(const std::string& channel, MSTHnPDFNeutrino* pdf) {
      MSTHnPDFNeutrino::NuIntChannel_t& ch = pdf->GetChannel(channel);
      ch.fCrossSection.clear();
@@ -164,8 +175,10 @@ class MSPDFBuilderTHn : public MSObject
    }
 
    // Private methods
-   THn* CreateOscillogramHD(MSTHnPDF* pdf, NeutrinoPropagator* propagator);
-   THn* ApplyResponseMatrix(const THn* target, const THn* responseMatrix); 
+   THn* ComputeOscillationProb(NeutrinoPropagator* propagator, const MSTHnHandler::axis& energy_axis_settings);
+   THn* ApplyOscillationProb(const THn* target, const int pdg = 12); 
+   THn* ApplyResponseMatrix(const THn* target, const THn* responseMatrix);
+   THn* ApplyResponseMatrixAndCrossSection(const THn* target, const THn* responseMatrix, const std::vector<double>& crossSection, double& rate);
    
 };
 

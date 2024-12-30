@@ -6,7 +6,8 @@
 
 # Add the shared library
 add_library(sstats-hist-fit SHARED ${SSTATS_HISTFIT_DIR}/MSHistFit.hpp)
-target_link_libraries(sstats-hist-fit PRIVATE ${ROOT_LIBRARIES} sstats-core)
+target_link_libraries(sstats-hist-fit 
+  PRIVATE ${ROOT_LIBRARIES} sstats-core ${MARLEY} ${MARLEY_ROOT})
 target_include_directories(sstats-hist-fit
   PUBLIC
   $<BUILD_INTERFACE:${SSTATS_HISTFIT_DIR}>
@@ -24,7 +25,8 @@ set(EXECUTABLE_SOURCE ${SSTATS_HISTFIT_DIR}/m-stats-hist-fit.cxx)
 
 # Add the executable
 add_executable(${EXECUTABLE_NAME} ${EXECUTABLE_SOURCE})
-target_link_libraries(${EXECUTABLE_NAME} PUBLIC sstats-hist-fit sstats-core ${ROOT_LIBRARIES} ROOT::Minuit)
+target_link_libraries(${EXECUTABLE_NAME} PUBLIC sstats-hist-fit 
+  sstats-core ${ROOT_LIBRARIES} ROOT::Minuit ${MARLEY} ${MARLEY_ROOT})
 set_target_properties(${EXECUTABLE_NAME} PROPERTIES
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"

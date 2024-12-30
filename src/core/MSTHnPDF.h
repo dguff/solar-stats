@@ -65,15 +65,22 @@ namespace mst {
     public:
       struct NuIntChannel_t {
         std::string fName = {};
+        int fPDG = {0};
         std::string fResponeMatrix = {};
         std::vector<double> fCrossSection = {};
         int fColor = {0};
 
         NuIntChannel_t() {}
-        NuIntChannel_t(const std::string& name, const std::string& respMatrix, int color = 0)
-          : fName(name), fResponeMatrix(respMatrix), fColor(color) {}
-        inline bool operator== (const NuIntChannel_t& other) const {
-          return fName == other.fName && fResponeMatrix == other.fResponeMatrix;
+        
+        NuIntChannel_t(const std::string& name, const int& pdg, 
+            const std::string& respMatrix, int color = 0)
+          : fName(name), fPDG(pdg), fResponeMatrix(respMatrix), fColor(color) {}
+
+        inline bool operator==(const NuIntChannel_t& other) const {
+          return 
+            fName == other.fName && 
+            fPDG == other.fPDG &&
+            fResponeMatrix == other.fResponeMatrix;
         }
       };
 
@@ -84,9 +91,11 @@ namespace mst {
       inline THn* GetTHn() {return fTHnPDF;}
       inline void SetTHn(THn* thn) {fTHnPDF = thn;}
 
-      inline NuIntChannel_t& AddChannel(const NuIntChannel_t& channel) {fChannels.push_back(channel); return fChannels.back();}
-      inline NuIntChannel_t& AddChannel(const std::string& name, const std::string& respMatrix, int color = 0) {
-        fChannels.push_back(NuIntChannel_t(name, respMatrix, color)); 
+      inline NuIntChannel_t& AddChannel(const NuIntChannel_t& channel) {
+        fChannels.push_back(channel); return fChannels.back();}
+      inline NuIntChannel_t& AddChannel(const std::string& name, 
+          const int& pdg, const std::string& respMatrix, int color = 0) {
+        fChannels.push_back(NuIntChannel_t(name, pdg, respMatrix, color)); 
         return fChannels.back();
       }
       inline NuIntChannel_t& GetChannel(const std::string& name) {

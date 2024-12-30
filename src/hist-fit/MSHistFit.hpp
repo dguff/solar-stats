@@ -161,9 +161,9 @@ namespace mst {
             const rapidjson::Value& jtarget = jcrossSection["target"];
             isMemberCorrect(jtarget, "nuclides", "Array", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/target/nuclides[]
             isMemberCorrect(jtarget, "atom_fractions", "Array", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/target/atom_fractions[]
-            isMemberCorrect(jcrossSection, "reaction", "String");       // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/reaction
-            isMemberCorrect(jcrossSection, "source", "Object");         // json/fittingModel/dataSets/*/components/*/channels/*/crossSecrion/*/source
-            isMemberCorrect(jcrossSection["source"], "neutrino", "Number"); // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/source/neutrino
+            isMemberCorrect(jcrossSection, "reactions", "Array", "String");       // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/reaction
+            isMemberCorrect(jcrossSection, "source", "Object");                   // json/fittingModel/dataSets/*/components/*/channels/*/crossSecrion/*/source
+            isMemberCorrect(jcrossSection["source"], "neutrino", "String");       // json/fittingModel/dataSets/*/components/*/channels/*/crossSection/*/source/neutrino
           }
         } // end of neutrino block
                                                                              //
@@ -178,6 +178,9 @@ namespace mst {
           << axis.name.GetString() << endl;              //
         isMemberCorrect(axis.value, "range", "Array", "Number", 2);           // json/fittingModel/dataSets/*/axis/*/range[]
         isMemberCorrect(axis.value, "rebin", "Int");                          // json/fittingModel/dataSets/*/axis/*/rebin
+        if (axis.value.HasMember("label")) {
+          isMemberCorrect(axis.value, "label", "String");                     // json/fittingModel/dataSets/*/axis/*/label
+        }
         if (axis.value.HasMember("limits")) {                                   // optional block:
           isMemberCorrect(axis.value, "limits", "Array", "Number", 2);                      // json/fittingModel/dataSets/*/axis/*/xmin
         }
@@ -238,6 +241,7 @@ namespace mst {
     rapidjson::Document::AllocatorType& allocator = mdoc.GetAllocator(); 
     mdoc.CopyFrom(jcrossSection, allocator);
     mdoc["source"].AddMember("type", "monoenergetic", allocator);
+    mdoc["source"].AddMember("energy", 10.0, allocator);
 
     FILE* marley_cfg_tmp; 
     char writeBuffer[65536];
@@ -337,6 +341,9 @@ namespace mst {
           handler.SetRange(axisID, axis.value["range"][0].GetDouble(), 
               axis.value["range"][1].GetDouble());
           handler.Rebin(axisID, axis.value["rebin"].GetInt());
+          if (axis.value.HasMember("label")) {
+            handler.SetLabel(axisID, axis.value["label"].GetString());
+          }
           if (axis.value.HasMember("limits")) {
             handler.SetLimits(axisID, 
                 axis.value["limits"][0].GetDouble(), 
@@ -383,7 +390,7 @@ namespace mst {
           pathToFile += i.value["pdf"][0].GetString();
           THn* hnNadir = handler.LoadHist(pathToFile.Data(),
               i.value["pdf"][1].GetString(),
-              "nadirExposurePDF");
+              "nadirExposurePDF", true);
           pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
           delete hnNadir;
         }
@@ -462,12 +469,17 @@ namespace mst {
               }
               pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
                     component.value["pdf"][1].GetString(),
-                    component.name.GetString()) );
+                    component.name.GetString(), true) );
 
               for (const auto& jchannel : component.value["channels"].GetObject()) {
                 const string channelName = jchannel.name.GetString();
                 const string respMatrixName = jchannel.value["responseMatrix"].GetString();
-                MSTHnPDFNeutrino::NuIntChannel_t& channel = pdf_->AddChannel(channelName, respMatrixName); 
+                const string neutrino_str = jchannel.value["crossSection"]["source"]["neutrino"].GetString();
+                const int neutrino_pdg = std::stoi(neutrino_str);
+                MSTHnPDFNeutrino::NuIntChannel_t& channel =  
+                  pdf_->AddChannel(channelName, 
+                      neutrino_pdg,
+                      respMatrixName); 
 
                 const rapidjson::Value& jcrossSection = jchannel.value["crossSection"];
                 const std::string gen_config = BuildMARLEYGeneratorConfig(jcrossSection, json["MC"]["seed"].GetInt());
@@ -568,17 +580,22 @@ namespace mst {
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
           ["components"][parName.c_str()]["injVal"].GetDouble();
 
-        //printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
-        //parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
-        pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
-        totalCounts += trueVal * mod->GetExposure();
+        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
+        parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        double count_rate = pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        printf("count_rate = %f\n", count_rate);
+        totalCounts += count_rate * mod->GetExposure();
+        getchar();
       }
       // register new data set. The previous one is delete inside the model
       // Define whether to add poission fluctuation to the number of events
+      printf("Generating new dataset with %f counts\n", totalCounts);
       const std::string sampling_procedure = json["MC"]["procedure"].GetString();
-      mod->SetDataSet(pdfBuilder->GetMCRealizaton(totalCounts, 
+      mod->SetDataSet(pdfBuilder->GetMCRealizaton(
+            totalCounts, 
             json["MC"]["enablePoissonFluctuations"].GetBool(), 
             sampling_procedure));
+      getchar();
     }
     return true;
   }
@@ -684,7 +701,7 @@ namespace mst {
           }
           auto tot = pdfBuilder->GetPDF("tot");
           auto tot_pr = tot->Projection(d);
-          tot_pr->SetLineColor(kGreen);
+          tot_pr->SetLineColor(kGray);
           tot_pr->SetLineWidth(2);
           tot_pr->DrawCopy("hist same");
           delete tot_pr;
