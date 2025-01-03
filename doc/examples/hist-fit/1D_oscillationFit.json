@@ -16,17 +16,12 @@
           "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
         },
         "components" : {
-          "neutron" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":10, "pdf":["background_pdf.root","neutron"], "injVal": 3, "color":  2},
           "b8":   { 
             "type" : "neutrino", "global": false, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1, "refVal":5e6, "pdf":["boron_pdf.root","hb8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
             "channels" : {
               "nueCC" : { 
                 "responseMatrix" : "nueCCresponseMatrix", 
-                "crossSection" : {
-                  "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, 
-                  "reactions" : ["ve40ArCC_Bhattacharya2009.react"],
-                  "source" : { "neutrino" : "12" }
-                }
+                "crossSection" : {"target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ve40ArCC_Bhattacharya2009.react"], "source" : { "neutrino" : "12" } }
               }
             }
           }

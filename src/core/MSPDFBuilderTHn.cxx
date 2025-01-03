@@ -174,28 +174,30 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
        response_matrix_applied = true;
 
        fTmpPDF->Add(hn, scaling * rate * 4.7484574e-07);
-
-       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-       TCanvas* c = new TCanvas("c", "c", 1200, 1000); 
-       c->Divide(3,1);
-       c->cd(1); 
-       TH2D* h2_surv = fOscillogram->Projection(1,0);
-       h2_surv->SetEntries( h2_surv->GetNbinsX() * h2_surv->GetNbinsY() );
-       h2_surv->Draw("colz"); gPad->Update();
-       c->cd(2); 
-       TH2D* h2_osc = (TH2D*) hn_osc->Projection(1,0);
-       h2_osc->SetEntries( h2_osc->GetNbinsX() * h2_osc->GetNbinsY() );
-       h2_osc->Draw("colz"); gPad->Update();
-       printf("h2_osc integral = %f\n", h2_osc->Integral());
-       c->cd(3);
-       TH2D* h2_recosc = (TH2D*) hn->Projection(1,0);
-       h2_recosc->Draw("colz"); gPad->Update();
-       printf("h2_recosc integral = %f\n", h2_recosc->Integral());
-       printf("rate = %f\n", rate);
-
-       timer->TurnOn(); timer->Reset(); 
-       getchar(); 
-       timer->TurnOff();
+/*
+ *       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+ *       TCanvas* c = new TCanvas("c", "c", 1200, 1000); 
+ *       c->Divide(3,1);
+ *       c->cd(1); 
+ *       TH2D* h2_surv = fOscillogram->Projection(1,0);
+ *       h2_surv->SetEntries( h2_surv->GetNbinsX() * h2_surv->GetNbinsY() );
+ *       h2_surv->Draw("colz"); gPad->Update();
+ *       c->cd(2); 
+ *       TH2D* h2_osc = (TH2D*) hn_osc->Projection(1,0);
+ *       h2_osc->SetEntries( h2_osc->GetNbinsX() * h2_osc->GetNbinsY() );
+ *       h2_osc->Draw("colz"); gPad->Update();
+ *       printf("h2_osc integral = %f\n", h2_osc->Integral());
+ *       c->cd(3);
+ *       TH2D* h2_recosc = (TH2D*) hn->Projection(1,0,"A");
+ *       h2_recosc->SetEntries( h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY() );
+ *       h2_recosc->Draw("colz"); gPad->Update();
+ *       printf("h2_recosc integral = %f\n", h2_recosc->Integral());
+ *       printf("rate = %f\n", rate );
+ *
+ *       timer->TurnOn(); timer->Reset(); 
+ *       getchar(); 
+ *       timer->TurnOff();
+ */
 
        delete hn_osc;
        delete hn; 
@@ -587,9 +589,8 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
       for (size_t i = 1; i <= nbins_target; i++) { // true energy bins loop
         ibresp[0] = i;
         ibtarget[0] = i;
-        nadir_exposure = target->GetBinContent(ibtarget);
         xsec = crossSection.at(i-1);
-        rate += xsec * target->GetBinContent(ibtarget) * nadir_exposure;
+        rate += xsec * target->GetBinContent(ibtarget);
         for (size_t j = 1; j <= nbins_product; j++) { // reco energy bins loop
           ibresp[1] = j; 
           ibprod[0] = j;
@@ -597,7 +598,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
           if (response > 0 ) {
             double target_val = target->GetBinContent(ibtarget);
             if (target_val > 0) {
-              tmp = target_val * response * xsec * nadir_exposure;
+              tmp = target_val * response * xsec;
               product->AddBinContent(ibprod, tmp);
               //if ((i+j)%100 == 0)
                 //printf("ibresp = [%d, %d], ibtarget = [%d, %d], ibprod = [%d, %d], response = %g, target_val = %g, xsec = %g\n", 

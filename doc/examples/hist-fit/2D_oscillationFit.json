@@ -11,7 +11,7 @@
     },
     "dataSets": {
       "DUNE": {
-        "exposure": 10000,
+        "exposure": 40000,
         "detectorResponse" : {
           "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
         },
@@ -19,7 +19,7 @@
           "nadir_surf" : {"pdf" : ["nadir.root","cos_nadir"]}
         },
         "components" : {
-          "neutron" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":10, "pdf":["background_pdf.root","neutron"], "injVal":12, "color":  2},
+          "neutron" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":0.5, "pdf":["background_pdf.root","neutron"], "injVal":1.0, "color":  2},
           "b8":   { 
             "type" : "neutrino", "global": false, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1, "refVal":5e6, "pdf":["boron_pdf.root","hb8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
             "channels" : {
@@ -52,7 +52,7 @@
   },
   "MC": { 
     "realizations":  1e0,
-    "procedure" : "bin_sampling",
+    "procedure" : "asimov",
     "seed": 1,
     "enablePoissonFluctuations": false,
     "outputFile": "tmp_2D_fitMultiSets.root"

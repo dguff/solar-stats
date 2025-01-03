@@ -384,13 +384,15 @@ namespace mst {
         if (pathToFile != "") pathToFile += "/";
         // print path to nadir pdf file
         const auto& jnadir = dataSet.value["nadirExposurePDF"].GetObject();
-        // print jnadir elements
-        pathToFile += jnadir["pdf"][0].GetString();
-        THn* hnNadir = handler.LoadHist(pathToFile.Data(),
-            jnadir["pdf"][1].GetString(),
-            "nadirExposurePDF", true);
-        pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
-        delete hnNadir;
+
+        for (const auto& i : jnadir){
+          pathToFile += i.value["pdf"][0].GetString();
+          THn* hnNadir = handler.LoadHist(pathToFile.Data(),
+              i.value["pdf"][1].GetString(),
+              "nadirExposurePDF", true);
+          pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
+          delete hnNadir;
+        }
       }
 
       //check if handler has a nadir axis
@@ -446,7 +448,6 @@ namespace mst {
 
         EPDFType pdfType = get_pdf_type_code(component.value["type"].GetString());
         MSTHnPDF* pdf = nullptr;
-        
 
         switch (pdfType) {
           case kComponent: 
@@ -462,18 +463,26 @@ namespace mst {
                 pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
               }
               else {
-                hn = handler.BuildHist( pathToFile.Data(),
+                hn = handler.LoadHist( pathToFile.Data(),
                       component.value["pdf"][1].GetString(),
                       component.name.GetString(),
                       true);
               }
 
               if ( has_nadir ) {
+                printf("factorizing nadir pdf for %s\n", component.name.GetString());
                 THn* hn_tmp = handler.FactorizeTHn( hn, hnNadir );
                 delete hn; 
                 hn = hn_tmp;
+
+                printf("hn dimensions: %d\n", hn->GetNdimensions());
+                for (int idim =0; idim < hn->GetNdimensions() ; idim++) {
+                  printf("\taxis %d: %d bins - [%g, %g]\n", idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+                }
+                getchar();
               }
               pdf_->SetTHn( hn );
+
 
               pdf = pdf_;
               break;
@@ -483,32 +492,27 @@ namespace mst {
             {
               MSTHnPDFNeutrino* pdf_ = new MSTHnPDFNeutrino(component.name.GetString());
               pdf_->SetPDFType(pdfType);
+              THn* hn = nullptr;
               if (component.value.HasMember("oscillation")) {
                 pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
               }
 
-              if (has_nadir) {
-                THn* hn0 = handler.LoadHist(pathToFile.Data(),
-                    component.value["pdf"][1].GetString(),
-                    component.name.GetString(), true); 
-                const TH1D* hnadir = pdfBuilder->GetNadirPDF();
-                const std::string hname = Form("hn_%s", hnadir->GetName());
-                THn* hn_nadir = THn::CreateHn(hname.c_str(), hname.c_str(), hnadir);
-
-                THn* hn = handler.FactorizeTHn( hn0, hn_nadir );
-
-                handler.NormalizeHn( hn ); 
-
-                pdf_->SetTHn( hn );
-
-                delete hn0; 
-                delete hn_nadir;
-              }
-              else {
-                pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+              hn = handler.LoadHist( pathToFile.Data(),
                       component.value["pdf"][1].GetString(),
-                      component.name.GetString(), true) );
+                      component.name.GetString(), true);
+              if ( has_nadir ) {
+                printf("factorizing nadir pdf for %s\n", component.name.GetString());
+                THn* hn_tmp = handler.FactorizeTHn( hn, hnNadir );
+                delete hn; 
+                hn = hn_tmp;
+
+                printf("hn dimensions: %d\n", hn->GetNdimensions());
+                for (int idim =0; idim < hn->GetNdimensions() ; idim++) {
+                  printf("\taxis %d: %d bins - [%g, %g]\n", idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+                }
+                getchar();
               }
+              pdf_->SetTHn( hn ); 
 
               for (const auto& jchannel : component.value["channels"].GetObject()) {
                 const string channelName = jchannel.name.GetString();
@@ -558,6 +562,8 @@ namespace mst {
 
       // Move pointer of the model to the fitter
       fitter->AddModel(mod);
+
+      if (hnNadir) delete hnNadir;
     }
 
     // Add models implementing pulls if requested in the config file
