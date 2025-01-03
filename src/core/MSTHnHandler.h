@@ -75,6 +75,9 @@ class MSTHnHandler : public MSObject
       void ProjectToAxis(const std::vector<int>& axisID) {
          for (const auto& i : axisID) fProjectID.push_back(i);
       }
+
+      //! Get the sequence of axis to which project the THn
+      inline const std::vector<int>& GetProjectID() const { return fProjectID; }
       
       //! Set the user range of a specific axis
       inline void SetRange(const int axisID, const double min, const double max) {
@@ -129,9 +132,13 @@ class MSTHnHandler : public MSObject
                      const std::string& newHistName,
                      bool  normalize = false);
 
+
+      //! Create a THn that is the combination of two THns
+      THn* FactorizeTHn(const THn* pdf0, const THn* pdf1);
+
       THn* CreateHn(); 
 
-      void NormalizeHn(THn* hn, const double norm = 1.0);  
+      void NormalizeHn(THn* hn, const double norm = 1.0) const;  
 
       //! Get axes vector
       const std::vector<axis>& GetAxes() const { return fAxis; }

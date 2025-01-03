@@ -416,8 +416,39 @@ THn* MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator* propagator, con
   }
 }
 
+THn* MSPDFBuilderTHn::BuildNadirPDF() const {
+  if (fNadirPDF == nullptr) {
+    fprintf(stderr, "MSPDFBuilderTHn::BuildNadirPDF ERROR: Nadir PDF not registered\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // get the nadir axis settings from the handler
+  MSTHnHandler::axis nadir_axis_settings; 
+  for (const auto& axis : fHandler.GetAxes()) {
+    TString label = axis.fLabel;
+    if (label.Contains("nadir", TString::kIgnoreCase)) {
+      nadir_axis_settings = axis;
+    }
+  }
+
+  THnD* nadir_pdf = new THnD("nadir_pdf", "nadir_pdf", 1,
+      &nadir_axis_settings.fNbins, &nadir_axis_settings.fMin, &nadir_axis_settings.fMax);
+
+  for (int i = 1; i <= nadir_axis_settings.fNbins; i++) {
+    double x0 = nadir_pdf->GetAxis(0)->GetBinLowEdge(i);
+    double x1 = nadir_pdf->GetAxis(0)->GetBinUpEdge(i);
+    double prob = fNadirFun->Integral(x0, x1, 1e-3);
+    nadir_pdf->SetBinContent(i, prob);
+  }
+
+  fHandler.NormalizeHn(nadir_pdf);
+
+  return nadir_pdf;
+}
+
 THn* MSPDFBuilderTHn::ApplyOscillationProb(const THn* target, const int pdg) {
   THnD* product = (THnD*) fOscillogram->Clone("hn_osc"); 
+  product->SetNameTitle(Form("%s_osc", target->GetName()), Form("%s_osc", target->GetTitle()));
   product->Reset();
   
   if (fOscillogram->GetNdimensions() == 2) {
@@ -427,17 +458,18 @@ THn* MSPDFBuilderTHn::ApplyOscillationProb(const THn* target, const int pdg) {
     int coords[2];
     Long64_t i = 0;
     while( (i = it->Next(coords)) >= 0 )  {
-      const double nu_ene  = energy_axis->GetBinCenter( coords[0] );
-      const double nu_flux = target->GetBinContent( coords[0] );
-      const double cos_nad = nadir_axis->GetBinCenter( coords[1] );
-      const double cos_nad_x0 = nadir_axis->GetBinLowEdge( coords[1] );
-      const double cos_nad_x1 = nadir_axis->GetBinUpEdge( coords[1] );
-      const double dcn = cos_nad_x1 - cos_nad_x0;
-      const double cos_nad_exposure = fNadirFun->Integral( cos_nad_x0, cos_nad_x1 ) / dcn;
+      //const double nu_ene  = energy_axis->GetBinCenter( coords[0] );
+      //const double nu_flux = target->GetBinContent( coords[0] );
+      //const double cos_nad = nadir_axis->GetBinCenter( coords[1] );
+      //const double cos_nad_x0 = nadir_axis->GetBinLowEdge( coords[1] );
+      //const double cos_nad_x1 = nadir_axis->GetBinUpEdge( coords[1] );
+      //const double cos_nad_exposure = fNadirFun->Integral( cos_nad_x0, cos_nad_x1 );
       double surv = fOscillogram->GetBinContent( i ); 
+      double nu_flux = target->GetBinContent( i ); 
+
       if (pdg > 0 && pdg != 12) { surv = 1.0 - surv; }
 
-      product->SetBinContent(i, nu_flux * surv * cos_nad_exposure);
+      product->SetBinContent(i, nu_flux * surv );
       //if (i%100 == 0)
       //printf("E = %g, cos(nad) = %g, cos(nad) exposure = %g, nu_flux = %g, surv = %g, product = %g\n", 
           //nu_ene, cos_nad, cos_nad_exposure, nu_flux, surv, nu_flux * surv * cos_nad_exposure);

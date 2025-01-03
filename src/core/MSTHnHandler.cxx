@@ -21,6 +21,7 @@
 // ROOT libgs
 #include "TFile.h"
 #include "THnBase.h"
+#include "THn.h"
 #include "TH1.h"
 #include "TH2.h"
 
@@ -189,6 +190,41 @@ THn* MSTHnHandler::BuildHist(const std::string& fileName,
   return outHist;
 }
 
+THn* MSTHnHandler::FactorizeTHn(const THn* hn0, const THn* hn1) 
+{
+  std::vector<int> nbins; 
+  std::vector<double> xmin; 
+  std::vector<double> xmax; 
+  for (int i = 0; i < hn0->GetNdimensions(); i++) {
+    nbins.push_back(hn0->GetAxis(i)->GetNbins());
+    xmin.push_back(hn0->GetAxis(i)->GetXmin());
+    xmax.push_back(hn0->GetAxis(i)->GetXmax());
+  }
+  for (int i = 0; i < hn1->GetNdimensions(); i++) {
+    nbins.push_back(hn1->GetAxis(i)->GetNbins());
+    xmin.push_back(hn1->GetAxis(i)->GetXmin());
+    xmax.push_back(hn1->GetAxis(i)->GetXmax());
+  }
+
+  const int ndim0 = hn0->GetNdimensions(); 
+ 
+  std::string hname = Form("%s_%s", hn0->GetName(), hn1->GetName()); 
+  THnD* product = new THnD(hname.data(), hname.data(), nbins.size(), nbins.data(), xmin.data(), xmax.data()); 
+
+  auto iter = product->CreateIter( false ); 
+  Long64_t ibin = 0; 
+  int coords[nbins.size()];
+
+  while ( (ibin = iter->Next(coords)) >= 0 ) {
+    const double x0 = hn0->GetBinContent( coords ); 
+    const double x1 = hn1->GetBinContent( &coords[ndim0] ); 
+    product->SetBinContent( ibin , x0*x1 ); 
+  }
+
+  delete iter; 
+  return product; 
+}
+
 THn* MSTHnHandler::CreateHn() {
   if (fAxis.size() == 0) {
     fprintf(stderr, "MSTHnHandler::CreateHn ERROR: axes template vector is empty.\n"); 
@@ -210,13 +246,13 @@ THn* MSTHnHandler::CreateHn() {
   return outHist;
 }
 
-void MSTHnHandler::NormalizeHn(THn* hn, const double norm) {
+void MSTHnHandler::NormalizeHn(THn* hn, const double norm) const {
   auto it = hn->CreateIter(fRespectUserRange);
   Long64_t i = 0;
   double integral = 0;
   while ((i = it->Next()) >= 0) integral += hn->GetBinContent(i);
   hn->Scale( norm / integral);
-
+  delete it;
   return;
 }
 

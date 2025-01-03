@@ -82,6 +82,12 @@ class MSPDFBuilderTHn : public MSObject
 
    //! register nadir pdf
    void RegisterNadirPDF(TH1* pdf); 
+   //! get nadir pdf
+   inline TH1D* GetNadirPDF() { return fNadirPDF; }
+   //! get nadir pdf
+   inline const TH1D* GetNadirPDF() const { return fNadirPDF; }
+   //! Build the nadir pdf as speficied by the handler
+   THn* BuildNadirPDF() const; 
 
    //! register response matrix
    void RegisterResponseMatrix(THn*);

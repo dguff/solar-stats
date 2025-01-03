@@ -313,7 +313,6 @@ namespace mst {
       // Set the exposure
       mod->SetExposure(dataSet.value["exposure"].GetDouble());
 
-
       // Create a separate pdfBuilder for each model. The pointer of each pdfBuilder 
       // will be associated to the model.
       MSPDFBuilderTHn* pdfBuilder = new MSPDFBuilderTHn(dataSet.name.GetString());
@@ -386,13 +385,24 @@ namespace mst {
         // print path to nadir pdf file
         const auto& jnadir = dataSet.value["nadirExposurePDF"].GetObject();
         // print jnadir elements
-        for (const auto& i : jnadir) {
-          pathToFile += i.value["pdf"][0].GetString();
-          THn* hnNadir = handler.LoadHist(pathToFile.Data(),
-              i.value["pdf"][1].GetString(),
-              "nadirExposurePDF", true);
-          pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
-          delete hnNadir;
+        pathToFile += jnadir["pdf"][0].GetString();
+        THn* hnNadir = handler.LoadHist(pathToFile.Data(),
+            jnadir["pdf"][1].GetString(),
+            "nadirExposurePDF", true);
+        pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
+        delete hnNadir;
+      }
+
+      //check if handler has a nadir axis
+      const auto& axes_list = handler.GetProjectID();
+      bool has_nadir = false;
+      THn* hnNadir = nullptr;
+      for (const auto& axis_id : axes_list) {
+        TString axis_name = handler.GetAxes().at(axis_id).fLabel;
+        if (axis_name.Contains("nadir", TString::ECaseCompare::kIgnoreCase)) {
+          has_nadir = true;
+          hnNadir = pdfBuilder->BuildNadirPDF(); 
+          break;
         }
       }
 
@@ -443,19 +453,28 @@ namespace mst {
             {
               MSTHnPDFComponent* pdf_ = new MSTHnPDFComponent(component.name.GetString());
               pdf_->SetPDFType(pdfType);
+              THn* hn = nullptr;
 
               if (component.value.HasMember("responseMatrix")) {
-                pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+                hn = handler.LoadHist( pathToFile.Data(),
                       component.value["pdf"][1].GetString(),
-                      component.name.GetString()) );
+                      component.name.GetString());
                 pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
               }
               else {
-                pdf_->SetTHn( handler.BuildHist( pathToFile.Data(),
+                hn = handler.BuildHist( pathToFile.Data(),
                       component.value["pdf"][1].GetString(),
                       component.name.GetString(),
-                      true));
+                      true);
               }
+
+              if ( has_nadir ) {
+                THn* hn_tmp = handler.FactorizeTHn( hn, hnNadir );
+                delete hn; 
+                hn = hn_tmp;
+              }
+              pdf_->SetTHn( hn );
+
               pdf = pdf_;
               break;
             }
@@ -467,9 +486,29 @@ namespace mst {
               if (component.value.HasMember("oscillation")) {
                 pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
               }
-              pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+
+              if (has_nadir) {
+                THn* hn0 = handler.LoadHist(pathToFile.Data(),
                     component.value["pdf"][1].GetString(),
-                    component.name.GetString(), true) );
+                    component.name.GetString(), true); 
+                const TH1D* hnadir = pdfBuilder->GetNadirPDF();
+                const std::string hname = Form("hn_%s", hnadir->GetName());
+                THn* hn_nadir = THn::CreateHn(hname.c_str(), hname.c_str(), hnadir);
+
+                THn* hn = handler.FactorizeTHn( hn0, hn_nadir );
+
+                handler.NormalizeHn( hn ); 
+
+                pdf_->SetTHn( hn );
+
+                delete hn0; 
+                delete hn_nadir;
+              }
+              else {
+                pdf_->SetTHn( handler.LoadHist( pathToFile.Data(),
+                      component.value["pdf"][1].GetString(),
+                      component.name.GetString(), true) );
+              }
 
               for (const auto& jchannel : component.value["channels"].GetObject()) {
                 const string channelName = jchannel.name.GetString();
