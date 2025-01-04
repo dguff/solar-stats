@@ -11,7 +11,7 @@
     },
     "dataSets": {
       "DUNE": {
-        "exposure": 40000,
+        "exposure": 400000,
         "detectorResponse" : {
           "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
         },
@@ -55,6 +55,11 @@
     "procedure" : "asimov",
     "seed": 1,
     "enablePoissonFluctuations": false,
-    "outputFile": "tmp_2D_fitMultiSets.root"
+    "outputFile": "tmp_2D_fitMultiSets.root",
+    "profile1D" : [
+      {"par" : "global.dm21",  "sigmaRange" : 3, "nPoints" : 40},
+      {"par" : "global.sinsqTheta12",  "sigmaRange" : 3, "nPoints" : 40},
+      {"par" : "DUNE.b8",  "sigmaRange" : 3, "nPoints" : 40}
+    ]
   }
 }

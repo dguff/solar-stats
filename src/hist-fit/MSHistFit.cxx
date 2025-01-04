@@ -1,5 +1,5 @@
-#ifndef MST_MSHistFit_HPP
-#define MST_MSHistFit_HPP
+#ifndef MST_MSHistFit_CXX
+#define MST_MSHistFit_CXX
 
 // c/c++ libs
 #include <csignal>
@@ -12,6 +12,7 @@
 #include "TCanvas.h"
 #include "TGraph.h"
 #include "TH1D.h"
+#include "TH2D.h"
 #include "THn.h"
 #include "TROOT.h"
 #include "TFile.h"
@@ -372,7 +373,8 @@ namespace mst {
           TString pathToFile (getenv("M_STATS_HIST_FIT"));
           if (pathToFile != "") pathToFile += "/";
           pathToFile += dr.value["responseMatrix"][0].GetString();
-          pdfBuilder->RegisterResponseMatrix(handler.LoadHist(pathToFile.Data(),
+          pdfBuilder->RegisterResponseMatrix(
+              handler.LoadHist(pathToFile.Data(),
                 dr.value["responseMatrix"][1].GetString(),
                 dr.name.GetString())); 
         }
@@ -459,7 +461,7 @@ namespace mst {
               if (component.value.HasMember("responseMatrix")) {
                 hn = handler.LoadHist( pathToFile.Data(),
                       component.value["pdf"][1].GetString(),
-                      component.name.GetString());
+                      component.name.GetString(), true);
                 pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
               }
               else {
@@ -472,6 +474,7 @@ namespace mst {
               if ( has_nadir ) {
                 printf("factorizing nadir pdf for %s\n", component.name.GetString());
                 THn* hn_tmp = handler.FactorizeTHn( hn, hnNadir );
+                handler.NormalizeHn( hn_tmp );
                 delete hn; 
                 hn = hn_tmp;
 
@@ -503,6 +506,7 @@ namespace mst {
               if ( has_nadir ) {
                 printf("factorizing nadir pdf for %s\n", component.name.GetString());
                 THn* hn_tmp = handler.FactorizeTHn( hn, hnNadir );
+                handler.NormalizeHn( hn_tmp );
                 delete hn; 
                 hn = hn_tmp;
 
@@ -603,6 +607,28 @@ namespace mst {
   inline bool SetDataSetFromMC (const rapidjson::Document& json, MSMinimizer* fitter) {
     // initialze the oscillation parameters (if any)
     fitter->UpdateOscillationParameters(); 
+    if ( json["fittingModel"].HasMember("oscillation") ) {
+      auto& oscillation_pars = fitter->GetPropagatorInputs(); 
+      const auto& joscillation = json["fittingModel"]["oscillation"];
+      for (const auto& par : joscillation["parameters"].GetObject()) {
+        const TString parName = par.name.GetString();
+        const double trueVal = par.value["value"].GetDouble();
+        if (parName.Contains("Theta12", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.x12 = trueVal;
+        } else if (parName.Contains("Theta13", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.x13 = trueVal;
+        } else if (parName.Contains("Theta23", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.x23 = trueVal;
+        } else if (parName.Contains("dm21", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.dm21 = trueVal;
+        } else if (parName.Contains("dm32", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.dm32 = trueVal;
+        } else if (parName.Contains("DeltaCP", TString::ECaseCompare::kIgnoreCase)) {
+          oscillation_pars.dcp = trueVal;
+        }
+      }
+      fitter->UpdateOscillationParameters();
+    }
 
     // loop over the models and create a new data set for each of them
     for (const auto& model: *fitter->GetModels()) {
@@ -766,13 +792,14 @@ namespace mst {
       cc->Update();
       return cc;
     }
-
+    
     /*
      * Build profile likelihood scan for a specific parameter
      */
     inline TGraph* Profile (const rapidjson::Document& json, MSMinimizer* fitter, 
         const string& parName, const double NLL, const int nPts) {
 
+      printf("Building profile for parameter %s\n", parName.c_str());
       // retrieve parameter of interest (poi) from the fitter
       mst::MSParameter* poi  = fitter->GetParameter(parName.c_str());
       if (!poi) {
@@ -793,7 +820,7 @@ namespace mst {
         }
       }
 
-      // Initialize output gaph
+      // Initialize output graph
       TGraph* gpll = new TGraph();
       // store absolute minimum of the likelihood
       double absMinNLL = std::numeric_limits<double>::max();
@@ -876,6 +903,140 @@ namespace mst {
       return gpll;
     }
 
+
+    /*
+     * Build profile likelihood scan for a pair of specific parameters
+     */
+    inline TH2D* Profile2D(const rapidjson::Document& json, MSMinimizer* fitter, 
+        const string& parName1, const string& parName2, const double NLL, 
+        const int nPts1, const int nPts2) 
+    {
+
+      // retrieve parameters of interest (poi) from the fitter
+      mst::MSParameter* poi1  = fitter->GetParameter(parName1.c_str());
+      if (!poi1) {
+        std::cerr << "Profile >> error: parameter " << parName1 << " not found\n";
+        return nullptr;
+      }
+      mst::MSParameter* poi2  = fitter->GetParameter(parName2.c_str());
+      if (!poi2) {
+        std::cerr << "Profile >> error: parameter " << parName2 << " not found\n";
+        return nullptr;
+      }
+      poi1->SetRange( poi1->GetFitBestValue() - NLL*poi1->GetFitBestValueErr(),
+          poi1->GetFitBestValue() + NLL*poi1->GetFitBestValueErr());
+      poi2->SetRange( poi2->GetFitBestValue() - NLL*poi2->GetFitBestValueErr(),
+          poi2->GetFitBestValue() + NLL*poi2->GetFitBestValueErr());
+
+      printf("Building profile likelihood for %s and %s\n", parName1.c_str(), parName2.c_str());
+      printf("parameter %s range: [%g, %g]\n", parName1.c_str(), poi1->GetRangeMin(), poi1->GetRangeMax());
+      printf("parameter %s range: [%g, %g]\n", parName2.c_str(), poi2->GetRangeMin(), poi2->GetRangeMax());
+
+      // save best fit values to restore the status of the parameters after the
+      // scanning
+      vector<double> fitBestValue    (fitter->GetParameterMap()->size(), -1);
+      vector<double> fitBestValueErr (fitter->GetParameterMap()->size(), -1);
+      {
+        int parIndex = 0;
+        for ( auto it : *fitter->GetParameterMap()) {
+          fitBestValue.at(parIndex)    = it.second->GetFitBestValue();
+          fitBestValueErr.at(parIndex) = it.second->GetFitBestValueErr();
+          parIndex++;
+        }
+      }
+
+      // Initialize output map
+      TH2D* hpll = new TH2D("hpll", "Profiled likelihood", 
+          nPts1, poi1->GetRangeMin(), poi1->GetRangeMax(), 
+          nPts2, poi2->GetRangeMin(), poi2->GetRangeMax());
+      // store absolute minimum of the likelihood
+      double absMinNLL = std::numeric_limits<double>::max();
+
+      // define auxiliary lambda function for profiling, which has visibility over
+      // all variables defined up to now
+      auto Scan = [&] (double t1Val, double t2Val) {
+        if (t1Val < poi1->GetRangeMin() || t1Val > poi1->GetRangeMax()) return false;
+        poi1->FixTo(t1Val);
+        if (t2Val < poi2->GetRangeMin() || t2Val > poi2->GetRangeMax()) return false;
+        poi2->FixTo(t2Val);
+
+        // get bin index in the nll map 
+        const int i1 = hpll->GetXaxis()->FindBin(t1Val);
+        const int i2 = hpll->GetYaxis()->FindBin(t2Val);
+
+        for (const auto& step : json["MinimizerSteps"].GetObject()) {
+          fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
+          fitter->Minimize(step.value["method"].GetString(),
+              step.value["resetMinuit"].GetBool(),
+              step.value["maxCall"].GetDouble(),
+              step.value["tollerance"].GetDouble());
+        }
+
+        // extract temporary best fit value
+        const double tmpMinNLL = fitter->GetMinNLL();
+        hpll->SetBinContent(i1, i2, tmpMinNLL); 
+        // update absolute minimum if needed
+        if (tmpMinNLL < absMinNLL) absMinNLL = tmpMinNLL;
+
+        // check the status of minuit
+        if (fitter->GetMinuitStatus()) {
+          std::cerr << "Profile2D >> error: minuit returned failed status ["
+            << fitter->GetMinuitStatus() << "]"
+            << " while fitting with " << parName1.data()
+            << " fixed to " << t1Val
+            << " and " << parName2.data()
+            << " fixed to " << t2Val << std::endl;
+        } 
+        // chek if the exit conditions are met
+        if (tmpMinNLL - absMinNLL <= NLL)  return true;
+        else return false;
+      };
+
+      // perform actual scan
+      {
+        // index used to define the points to scans
+        // best fit value and error
+        fitter->SyncFitParameters(true);
+        
+        for (int j1 = 1; j1 <= hpll->GetNbinsX(); j1++) {
+          for (int j2 = 1; j2 <= hpll->GetNbinsY(); j2++) {
+            const double t1Val = hpll->GetXaxis()->GetBinCenter(j1);
+            const double t2Val = hpll->GetYaxis()->GetBinCenter(j2);
+            Scan(t1Val, t2Val);
+          }
+        }
+
+        // normilize profile to the absolute minimum found during while profiling
+        const double min_pll = hpll->GetMinimum(); 
+        for (int i = 0; i < hpll->GetNbinsX(); i++ ) {
+          for (int j = 0; j < hpll->GetNbinsY(); j++ ) {
+            hpll->SetBinContent(i, j, hpll->GetBinContent(i, j) - min_pll);
+          }
+        }
+      }
+
+      // reset parameter original status
+      // restore best fit values of the parameters
+      {
+        int parIndex = 0;
+        for ( auto it : *fitter->GetParameterMap()) {
+          it.second->SetFitBestValue(fitBestValue.at(parIndex));
+          it.second->SetFitBestValueErr(fitBestValueErr.at(parIndex));
+          parIndex++;
+        }
+      }
+      poi1->Release();
+      poi2->Release();
+
+      // Set titles (this must be done after filling the TGraph. Probably it's a
+      // bug of ROOT
+      hpll->SetName(Form("nll_%s_%s", parName1.c_str(), parName2.c_str())); 
+      hpll->GetXaxis()->SetTitle(parName1.data()); 
+      hpll->GetYaxis()->SetTitle(parName2.data()); 
+      hpll->GetZaxis()->SetTitle("-#Delta LogLikelihood)");
+      return hpll;
+    }
+
     /*
      * Build Profile for each parameter of the fit
      */
@@ -885,24 +1046,48 @@ namespace mst {
 
       // retrieve the canvas or initialize it
       delete gROOT->GetListOfCanvases()->FindObject("cPLL");
-      const int poiNum = fitter->GetParameterMap()->size();
-      TCanvas* cc = new TCanvas("cPLL","profile log likelihoods",
-          400*4, 400*ceil(poiNum/4.0)); 
-      cc->Divide(4, ceil(poiNum/4.0));
+      TCanvas* cc = nullptr;
 
+      if (json["MC"].HasMember("profile2D")) {
+        const int nWindows = json["MC"]["profile2D"].Size();
+        cc = new TCanvas("cPL2D", "profile log likelihoods 2D",
+            400*ceil(nWindows/2.0), 400*ceil(nWindows/2.0));
+        cc->DivideSquare( nWindows );
 
-      int parIndex = 0;
-      for ( auto it : *fitter->GetParameterMap()) {
-        TGraph* tmp = Profile(json, fitter, it.second->GetName().c_str(), NLL, nPts);
-        cc->cd(parIndex+1);
-        tmp->Draw("al*");
-        cc->Update();
-        parIndex++;
+        int iwindow = 1;
+
+        for (const auto& window : json["MC"]["profile2D"].GetArray()) {
+          TH2D* tmp = Profile2D(json, fitter, 
+              window["par1"].GetString(), 
+              window["par2"].GetString(), 3.0, 
+              window["nPoints1"].GetInt(), window["nPoints2"].GetInt());
+          cc->cd( iwindow );
+          tmp->Draw("colz");
+          cc->Update();
+          iwindow++;
+        }
+      }
+      else if (json["MC"].HasMember("profile1D")) {
+        const int nWindows = json["MC"]["profile1D"].Size();
+        cc = new TCanvas("cPL1D", "profile log likelihoods 1D",
+            400*ceil(nWindows/2.0), 400*ceil(nWindows/2.0));
+        cc->DivideSquare( nWindows );
+
+        int iwindow = 1;
+
+        for (const auto& window : json["MC"]["profile1D"].GetArray()) {
+          TGraph* tmp = Profile(json, fitter, 
+              window["par"].GetString(), 
+              3.0, 
+              window["nPoints"].GetInt());
+          cc->cd( iwindow );
+          tmp->Draw("apl");
+          cc->Update();
+          iwindow++;
+        }
       }
       return cc;
     }
-
-
   } // namespace mst
 
-#endif // MST_MSHistFit_HPP
+#endif // MST_MSHistFit_CXX

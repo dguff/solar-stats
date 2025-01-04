@@ -47,6 +47,36 @@ class MSMinimizer : public MSObject
       //! Type defining a vector of Models used as class member
       using MSModelVector = std::vector<MSModel*>;
 
+      //! Structure to hold the input parameters for the neutrino propagator
+      struct PropagatorInputs_t {
+        int ix12 = -1;
+        int ix13 = -1;
+        int ix23 = -1;
+        int idcp = -1;
+        int idm21 = -1;
+        int idm32 = -1;
+
+        double x12 = {};
+        double x13 = {};
+        double x23 = {};
+        double dcp = {};
+        double dm21 = {};
+        double dm32 = {};
+
+        bool useSinSq = true; 
+        int  nubar = 1;
+
+        //! Set oscillation parameters 
+        void SetParameters(const double* par) {
+          (ix12 > 0) ? x12 = par[ix12] : x12 = 0.0;
+          (ix13 > 0) ? x13 = par[ix13] : x13 = 0.0;
+          (ix23 > 0) ? x23 = par[ix23] : x23 = 0.0;
+          (idcp > 0) ? dcp = par[idcp] : dcp = 0.0;
+          (idm21 > 0) ? dm21 = par[idm21] : dm21 = 0.0;
+          (idm32 > 0) ? dm32 = par[idm32] : dm32 = 0.0;
+        }
+      }; 
+
    public:
       //! Constructor
       MSMinimizer(const std::string& name = "");
@@ -115,6 +145,10 @@ class MSMinimizer : public MSObject
       NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
       //! Update oscillation parameters in the propagator
       void UpdateOscillationParameters();
+      //! Get the propagator inputs by reference
+      inline PropagatorInputs_t& GetPropagatorInputs() { return fPropagatorInputs; }
+      //! Get the propagator inputs by reference
+      inline const PropagatorInputs_t& GetPropagatorInputs() const { return fPropagatorInputs; }
 
       //! Sync parameter info from the model to minuit
       //! Optionally, do not reset the starting values of the fit parameters and 
@@ -157,35 +191,6 @@ class MSMinimizer : public MSObject
             double* par, int flag);
 
    private:
-      //! Structure to hold the input parameters for the neutrino propagator
-      struct PropagatorInputs_t {
-        int ix12 = -1;
-        int ix13 = -1;
-        int ix23 = -1;
-        int idcp = -1;
-        int idm21 = -1;
-        int idm32 = -1;
-
-        double x12 = {};
-        double x13 = {};
-        double x23 = {};
-        double dcp = {};
-        double dm21 = {};
-        double dm32 = {};
-
-        bool useSinSq = true; 
-        int  nubar = 1;
-
-        //! Set oscillation parameters 
-        void SetParameters(const double* par) {
-          (ix12 > 0) ? x12 = par[ix12] : x12 = 0.0;
-          (ix13 > 0) ? x13 = par[ix13] : x13 = 0.0;
-          (ix23 > 0) ? x23 = par[ix23] : x23 = 0.0;
-          (idcp > 0) ? dcp = par[idcp] : dcp = 0.0;
-          (idm21 > 0) ? dm21 = par[idm21] : dm21 = 0.0;
-          (idm32 > 0) ? dm32 = par[idm32] : dm32 = 0.0;
-        }
-      }; 
 
       //! Global pointer for using FCNNLLLikelihood as Minuit FCN
       static MSMinimizer* global_pointer;

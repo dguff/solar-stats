@@ -168,6 +168,8 @@ class MSPDFBuilderTHn : public MSObject
    std::map<std::string, marley::Generator> fMarleyGen; 
    //! Hist handler
    MSTHnHandler fHandler;
+   //! Conversion factor
+   const double exposure_conversion = 4.7478558e-07;
 
    enum class MCRealizationProcedure {
      kUndefined = 0, kSampling = 1, kBinSampling = 2, kAsimov = 3
@@ -184,7 +186,7 @@ class MSPDFBuilderTHn : public MSObject
    THn* ComputeOscillationProb(NeutrinoPropagator* propagator, const MSTHnHandler::axis& energy_axis_settings);
    THn* ApplyOscillationProb(const THn* target, const int pdg = 12); 
    THn* ApplyResponseMatrix(const THn* target, const THn* responseMatrix);
-   THn* ApplyResponseMatrixAndCrossSection(const THn* target, const THn* responseMatrix, const std::vector<double>& crossSection, double& rate);
+   THn* ApplyResponseMatrixAndCrossSection(const THn* target, const THn* responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t& channel);
    
 };
 

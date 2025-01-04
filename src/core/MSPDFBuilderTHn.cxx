@@ -115,7 +115,9 @@ void MSPDFBuilderTHn::RegisterResponseMatrix(THn* hist) {
 }
 
 double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling, NeutrinoPropagator* propagator) {
-   double rate = 0;
+   // define the total rate
+   double total_rate = 0;
+
    // find hist by name
    PDFMap::iterator im = fPDFMap->find(histName);
    if (im == fPDFMap->end()) {
@@ -158,7 +160,9 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
        }
      }
 
-     for (const auto& channel : pdf->GetChannels()) {
+     for (auto& channel : pdf->GetChannels()) {
+       // Reset normalization in channel attributes
+       channel.fNormalization = 0;
        // Apply oscillation to PDF
        THn* hn_osc = ApplyOscillationProb(im->second->GetTHn(), channel.fPDG);
 
@@ -170,10 +174,11 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
          exit(EXIT_FAILURE);
        }
        THnD* respMatrix = dynamic_cast<THnD*>(im_resp->second);
-       hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, channel.fCrossSection, rate );
+       hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, channel );
        response_matrix_applied = true;
+       channel.fNormalization *= exposure_conversion;
 
-       fTmpPDF->Add(hn, scaling * rate * 4.7484574e-07);
+       fTmpPDF->Add(hn, scaling * exposure_conversion ); 
 /*
  *       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
  *       TCanvas* c = new TCanvas("c", "c", 1200, 1000); 
@@ -199,11 +204,11 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
  *       timer->TurnOff();
  */
 
+       total_rate += scaling * channel.fNormalization;
+
        delete hn_osc;
        delete hn; 
      }
-
-     rate *= (scaling*4.7484574e-07);
    }
    else if (pdfType == EPDFType::kComponent) {
      MSTHnPDFComponent* pdf = static_cast<MSTHnPDFComponent*>(im->second);
@@ -213,7 +218,7 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
      } else {
        hn = im->second->GetTHn();
      }
-     rate = scaling;
+     total_rate = scaling;
      fTmpPDF->Add(hn, scaling);
      if (response_matrix_applied) delete hn;
    }
@@ -223,7 +228,7 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
       exit(EXIT_FAILURE);
    }
 
-   return rate;
+   return total_rate;
 }
 
 THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) { 
@@ -511,7 +516,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* respons
   const int iaxis_transform_target = 0; 
   const int iaxis_transform_response = 1; 
 
-  THnD* product = static_cast<THnD*>(fHandler.CreateHn());
+  THnD* product = dynamic_cast<THnD*>( fHandler.CreateHn() );
   product->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName())); 
 
   const int ndim_target = target->GetNdimensions(); 
@@ -525,21 +530,22 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* respons
   const int nbins_product = product->GetAxis(iaxis_transform_target)->GetNbins(); 
 
   double response = 0.0; 
+  double integral = 0.0;
+  double tmp = 0.0; 
 
-  for (size_t n=1; n<=product->GetAxis(1)->GetNbins(); n++) { // nadir bins loop
-    ibtarget[1] = n; 
-    ibprod[1] = n; 
-    for (size_t i = 1; i <= nbins_target; i++) { // true energy bins loop
-      ibresp[0] = i;
-      ibtarget[0] = i;
-      for (size_t j = 1; j <= nbins_product; j++) { // reco energy bins loop
-        ibresp[1] = j; 
-        ibprod[0] = j;
+  for (int inadir=1; inadir<=product->GetAxis(1)->GetNbins(); inadir++) { // nadir bins loop
+    for (int ienu = 1; ienu <= nbins_target; ienu++) { // true energy bins loop
+      for (int ierec = 1; ierec <= nbins_product; ierec++) { // reco energy bins loop
+        ibresp[0] = ienu; ibresp[1] = ierec;
         response = responseMatrix->GetBinContent(ibresp); 
-        if (response > 0 ) {
+        if (response != 0 ) {
+          ibtarget[0] = ienu; ibtarget[1] = inadir;
           double target_val = target->GetBinContent(ibtarget);
-          if (target_val > 0) {
-            product->AddBinContent(ibprod, target_val * response);
+          if (target_val != 0) {
+            ibprod[0] = ierec; ibprod[1] = inadir;
+            tmp = target_val * response;
+            integral += tmp;
+            product->AddBinContent(ibprod, tmp);
           }
         }
       }
@@ -559,7 +565,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrix(const THn* target, const  THn* respons
 }
 
 THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target, 
-    const  THn* responseMatrix, const std::vector<double>& crossSection, double& rate) {
+    const  THn* responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t& channel) {
   // TODO: make these defined in configuration file
   const int iaxis_transform_target = 0; 
   const int iaxis_transform_response = 1; 
@@ -569,6 +575,9 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
 
   const int ndim_target = target->GetNdimensions(); 
   const int ndim_product = product->GetNdimensions(); 
+
+  const std::vector<double>& crossSection = channel.fCrossSection;
+  double& normalization = channel.fNormalization;
 
   if (ndim_product == 2) {
     int ibresp[2] = {0, 0}; 
@@ -581,7 +590,6 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
     double response = 0.0; 
     double xsec = 0.0;
     double tmp = 0.0; 
-    double nadir_exposure = 0.0;
 
     for (size_t n=1; n<=product->GetAxis(1)->GetNbins(); n++) { // nadir bins loop
       ibtarget[1] = n; 
@@ -590,7 +598,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
         ibresp[0] = i;
         ibtarget[0] = i;
         xsec = crossSection.at(i-1);
-        rate += xsec * target->GetBinContent(ibtarget);
+        normalization += xsec * target->GetBinContent(ibtarget);
         for (size_t j = 1; j <= nbins_product; j++) { // reco energy bins loop
           ibresp[1] = j; 
           ibprod[0] = j;
@@ -625,7 +633,7 @@ THn* MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn* target,
       ibresp[0] = i;
       ibtarget[0] = i;
       xsec = crossSection.at(i-1);
-      rate += xsec * target->GetBinContent(ibtarget);
+      normalization += xsec * target->GetBinContent(ibtarget);
       for (size_t j = 1; j <= nbins_product; j++) { // reco energy bins loop
         ibresp[1] = j; 
         ibprod[0] = j;

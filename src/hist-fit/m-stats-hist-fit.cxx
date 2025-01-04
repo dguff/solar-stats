@@ -44,7 +44,7 @@
 #include "MSModelTHnBMLF.h"
 #include "MSModelPulls.h"
 #include "MSMinimizer.h"
-#include "MSHistFit.hpp"
+#include "MSHistFit.cxx"
 
 // rapidjson's DOM-style API
 #include "rapidjson/document.h"   

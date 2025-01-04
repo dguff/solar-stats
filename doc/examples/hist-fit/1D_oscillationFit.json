@@ -2,11 +2,11 @@
   "fittingModel": {
     "oscillation" : {
       "parameters" : {
-        "dm21"        : {"global" : true, "value": 7.5e-5, "range": [3.0e-5,10.0e-5], "fixed": false, "fitStep": 0.01, "refVal": 7.5e-5},
-        "dm32"        : {"global" : true, "value": 2.5e-3, "range": [1.0e-3, 4.0e-3], "fixed": true , "fitStep": 0.01, "refVal": 2.5e-3},
-        "sinsqTheta23": {"global" : true, "value": 0.561 , "range": [0.2   , 0.8   ], "fixed": true , "fitStep": 0.01, "refVal": 0.561 },
-        "sinsqTheta13": {"global" : true, "value": 0.029 , "range": [0.00  , 0.1   ], "fixed": false, "fitStep": 0.01, "refVal": 0.029 },
-        "sinsqTheta12": {"global" : true, "value": 0.307 , "range": [0.20  , 0.5   ], "fixed": false, "fitStep": 0.01, "refVal": 0.3   }
+        "dm21"        : {"global" : true, "value": 7.5e-5, "range": [3.0e-5,10.0e-5], "fixed": true, "fitStep": 0.01, "refVal": 7.5e-5},
+        "dm32"        : {"global" : true, "value": 2.5e-3, "range": [1.0e-3, 4.0e-3], "fixed": true, "fitStep": 0.01, "refVal": 2.5e-3},
+        "sinsqTheta23": {"global" : true, "value": 0.561 , "range": [0.2   , 0.8   ], "fixed": true, "fitStep": 0.01, "refVal": 0.561 },
+        "sinsqTheta13": {"global" : true, "value": 0.029 , "range": [0.00  , 0.1   ], "fixed": true, "fitStep": 0.01, "refVal": 0.029 },
+        "sinsqTheta12": {"global" : true, "value": 0.307 , "range": [0.20  , 0.5   ], "fixed": true, "fitStep": 0.01, "refVal": 0.307  }
       }
     },
     "dataSets": {
@@ -16,6 +16,7 @@
           "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
         },
         "components" : {
+          "neutron" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":0.5, "pdf":["background_pdf.root","neutron"], "injVal":3.0, "color":  2},
           "b8":   { 
             "type" : "neutrino", "global": false, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1, "refVal":5e6, "pdf":["boron_pdf.root","hb8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
             "channels" : {
@@ -28,7 +29,7 @@
         },
         "projectOnAxis": [0],
         "axis": { 
-          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,12], "rebin" : 1}
+          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,15], "rebin" : 1}
         },
         "normalizePDFInUserRange": false 
       }

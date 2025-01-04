@@ -66,6 +66,7 @@ namespace mst {
       struct NuIntChannel_t {
         std::string fName = {};
         int fPDG = {0};
+        double fNormalization = {0}; 
         std::string fResponeMatrix = {};
         std::vector<double> fCrossSection = {};
         int fColor = {0};
