@@ -644,10 +644,9 @@ namespace mst {
       // add hists to pdfBuilder with the desired rate and copute the number 
       // of counts to extract to create the data set
       double totalCounts = 0;
-      //for (const auto& par: *mod->GetLocalParameters()) {
-      for (const auto& par : *mod->GetParameters() ) {
-        if (par.second->IsInput() == false) continue;
-        const string parName = mod->GetLocalName( par.first );
+      for (const auto& parName: *mod->GetLocalParameters()) {
+        const auto par = mod->GetParameter(parName);
+        if (par->IsInput() == false) continue;
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
           ["components"][parName.c_str()]["injVal"].GetDouble();
 

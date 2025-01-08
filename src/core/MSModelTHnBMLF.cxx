@@ -25,17 +25,20 @@ double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagato
    fPDFBuilder->ResetPDF();
 
    // retrieve parameters from Minuit and compute the total exposure
-   //for (int i =0; i < fParNameList->size(); i++) {
-      //const double par_cts = GetMinuitParameter(par, fParNameList->at(i));
-      //fPDFBuilder->AddHistToPDF(fParNameList->at(i),  par_cts, propagator);
-   //}
-   for (const auto& par_itr : *fParameters) {
-     if (par_itr.second->IsInput()) {
-       const std::string par_name = GetLocalName( par_itr.second->GetName() );
-       const double par_cts = GetMinuitParameter(par, par_name);
-       fPDFBuilder->AddHistToPDF(par_name, par_cts, propagator);
-     }
+   for (int i =0; i < fParNameList->size(); i++) {
+      const auto& parName = fParNameList->at(i);
+      auto mspar = GetParameter(parName);
+      if (mspar->IsInput() == false) continue;
+      const double par_cts = GetMinuitParameter(par, parName);
+      fPDFBuilder->AddHistToPDF(parName,  par_cts, propagator);
    }
+   //for (const auto& par_itr : *fParameters) {
+     //if (par_itr.second->IsInput()) {
+       //const std::string par_name = GetLocalName( par_itr.second->GetName() );
+       //const double par_cts = GetMinuitParameter(par, par_name);
+       //fPDFBuilder->AddHistToPDF(par_name, par_cts, propagator);
+     //}
+   //}
 
    const THn* pdf = fPDFBuilder->GetPDF("tmpPDF");
    if (pdf == 0) {
