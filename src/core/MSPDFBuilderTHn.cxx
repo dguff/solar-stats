@@ -439,10 +439,22 @@ THn* MSPDFBuilderTHn::BuildNadirPDF() const {
     }
   }
 
+  printf("BuildNadirPDF: nadir_axis_settings\n");
+  nadir_axis_settings.print();
+
   THnD* nadir_pdf = new THnD("nadir_pdf", "nadir_pdf", 1,
       &nadir_axis_settings.fNbins, &nadir_axis_settings.fMin, &nadir_axis_settings.fMax);
 
+  int i_range_min = 1; 
+  int i_range_max = nadir_axis_settings.fNbins;
+
+  if (nadir_axis_settings.fSetRange) {
+    i_range_min = nadir_pdf->GetAxis(0)->FindBin(nadir_axis_settings.fRangeMin);
+    i_range_max = nadir_pdf->GetAxis(0)->FindBin(nadir_axis_settings.fRangeMax);
+  }
+
   for (int i = 1; i <= nadir_axis_settings.fNbins; i++) {
+    if (i < i_range_min || i >= i_range_max) continue;
     double x0 = nadir_pdf->GetAxis(0)->GetBinLowEdge(i);
     double x1 = nadir_pdf->GetAxis(0)->GetBinUpEdge(i);
     double prob = fNadirFun->Integral(x0, x1, 1e-3);
