@@ -295,7 +295,7 @@ namespace mst {
         p->SetFixed(par.value["fixed"].GetBool());
         p->SetRange(par.value["range"].GetArray()[0].GetDouble(),
             par.value["range"].GetArray()[1].GetDouble());
-        p->SetGlobal( true );
+        p->SetGlobal( par.value["global"].GetBool() );
         p->SetFitStartStep(par.value["fitStep"].GetDouble());
         p->SetFitStartValue(par.value["refVal"].GetDouble());
         p->SetOscillation();
@@ -391,7 +391,7 @@ namespace mst {
           pathToFile += i.value["pdf"][0].GetString();
           THn* hnNadir = handler.LoadHist(pathToFile.Data(),
               i.value["pdf"][1].GetString(),
-              "nadirExposurePDF", true);
+              Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
           pdfBuilder->RegisterNadirPDF( hnNadir->Projection(0) );
           delete hnNadir;
         }
@@ -477,12 +477,6 @@ namespace mst {
                 handler.NormalizeHn( hn_tmp );
                 delete hn; 
                 hn = hn_tmp;
-
-                printf("hn dimensions: %d\n", hn->GetNdimensions());
-                for (int idim =0; idim < hn->GetNdimensions() ; idim++) {
-                  printf("\taxis %d: %d bins - [%g, %g]\n", idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
-                }
-                getchar();
               }
               pdf_->SetTHn( hn );
 
@@ -509,12 +503,6 @@ namespace mst {
                 handler.NormalizeHn( hn_tmp );
                 delete hn; 
                 hn = hn_tmp;
-
-                printf("hn dimensions: %d\n", hn->GetNdimensions());
-                for (int idim =0; idim < hn->GetNdimensions() ; idim++) {
-                  printf("\taxis %d: %d bins - [%g, %g]\n", idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
-                }
-                getchar();
               }
               pdf_->SetTHn( hn ); 
 

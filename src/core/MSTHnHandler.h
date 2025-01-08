@@ -60,6 +60,16 @@ class MSTHnHandler : public MSObject
             && fRangeMin == a.fRangeMin && fRangeMax == a.fRangeMax
             && fNbins == a.fNbins   && fNgroup == a.fNgroup;
        }
+       void operator=(const axis& a) {
+          fSetRange = a.fSetRange;
+          fMin = a.fMin;
+          fMax = a.fMax;
+          fRangeMin = a.fRangeMin;
+          fRangeMax = a.fRangeMax;
+          fNbins = a.fNbins;
+          fNgroup = a.fNgroup;
+          fLabel = a.fLabel;
+       }
        void print() const {
          printf("axis settings: label: %s, nbins = %d, min = %f, max = %f, range = [%g, %g] ngroup = %d\n", 
                 fLabel.data(), fNbins, fMin, fMax, fRangeMin, fRangeMax, fNgroup);
