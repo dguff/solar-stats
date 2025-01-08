@@ -359,6 +359,7 @@ THn* MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator* propagator, con
     THnD *oscillogram = new THnD("surv_map", "surv_map", 2, nbins, xmin, xmax);
     TAxis* energy_axis = oscillogram->GetAxis(0);
     TAxis* nadir_axis = oscillogram->GetAxis(1);
+    nadir_axis->SetRangeUser( nadir_axis_settings.fRangeMin, nadir_axis_settings.fRangeMax );
     auto* it = oscillogram->CreateIter(true);
     int coords[2];
     Long64_t i = 0;
