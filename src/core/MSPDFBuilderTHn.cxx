@@ -206,6 +206,11 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
 
        total_rate += scaling * channel.fNormalization;
 
+       //printf("[%s] %s.%s: normalization: %g, rate: %g\n", 
+           //fName.data(), histName.data(), channel.fName.data(), 
+           //channel.fNormalization, scaling * channel.fNormalization);
+       //getchar();
+
        delete hn_osc;
        delete hn; 
      }
@@ -228,8 +233,125 @@ double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, double scaling
       exit(EXIT_FAILURE);
    }
 
+
    return total_rate;
 }
+
+double MSPDFBuilderTHn::AddHistToPDF(const std::string& histName, const string& channel, const double scaling, NeutrinoPropagator* propagator) {
+   // define the total rate
+   double total_rate = 0;
+
+   // find hist by name
+   PDFMap::iterator im = fPDFMap->find(histName);
+   if (im == fPDFMap->end()) {
+      std::cerr << "error: PDF with name " << histName.c_str() << " not loaded\n";
+      exit(EXIT_FAILURE);
+   }
+   // check if the temporary PDF exist already
+   if (!fTmpPDF) {
+      fTmpPDF = fHandler.CreateHn();
+      fTmpPDF->SetName("privatePDF");
+      fTmpPDF->SetTitle("privatePDF");
+      ResetPDF();
+      size_t iaxis = 0; 
+      for (const auto& axis : fHandler.GetAxes()) {
+        if (axis.fSetRange) {
+          fTmpPDF->GetAxis(iaxis)->SetRangeUser(axis.fRangeMin, axis.fRangeMax);
+        }
+        iaxis++;
+      }
+   }
+
+   EPDFType pdfType = im->second->GetPDFType();
+   THn* hn = nullptr; 
+   bool response_matrix_applied = false; 
+
+   if (pdfType == EPDFType::kComponent) {
+      fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF WARNING: Cannot use channel \"%s\" for kComponent PDF %s. Using standard method.\n", 
+          channel.c_str(), histName.c_str());
+      return AddHistToPDF(histName, scaling, propagator);
+   }
+   else if (pdfType == EPDFType::kNeutrino) {
+     MSTHnPDFNeutrino* pdf = static_cast<MSTHnPDFNeutrino*>(im->second);
+     if (pdf->ApplyOscillation()) {
+       if (propagator == nullptr) {
+         fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: No neutrino propagator associated with %s\n", 
+             histName.c_str());
+         exit(EXIT_FAILURE); 
+       } 
+       else {
+         MSTHnHandler::axis energy_axis_settings;
+         energy_axis_settings.fNbins = pdf->GetTHn()->GetAxis(0)->GetNbins();
+         energy_axis_settings.fMin = pdf->GetTHn()->GetAxis(0)->GetXmin();
+         energy_axis_settings.fMax = pdf->GetTHn()->GetAxis(0)->GetXmax();
+         if (fOscillogram == nullptr) fOscillogram = ComputeOscillationProb(propagator, energy_axis_settings); 
+       }
+     }
+
+     MSTHnPDFNeutrino::NuIntChannel_t& ch = pdf->GetChannel(channel);
+     // Reset normalization in channel attributes
+     ch.fNormalization = 0;
+     // Apply oscillation to PDF
+     THn* hn_osc = ApplyOscillationProb(im->second->GetTHn(), ch.fPDG);
+
+     // get response matrix from the PDF builder
+     auto im_resp = fRespMatrixMap->find(ch.fResponeMatrix);
+     if (im_resp == fRespMatrixMap->end()) {
+       fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: Response matrix %s not found for %s channel %s\n", 
+           histName.data(), ch.fName.data(), ch.fResponeMatrix.c_str());
+       exit(EXIT_FAILURE);
+     }
+     THnD* respMatrix = dynamic_cast<THnD*>(im_resp->second);
+     hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, ch);
+     response_matrix_applied = true;
+     ch.fNormalization *= exposure_conversion;
+
+     fTmpPDF->Add(hn, scaling * exposure_conversion ); 
+     /*
+      *       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+      *       TCanvas* c = new TCanvas("c", "c", 1200, 1000); 
+      *       c->Divide(3,1);
+      *       c->cd(1); 
+      *       TH2D* h2_surv = fOscillogram->Projection(1,0);
+      *       h2_surv->SetEntries( h2_surv->GetNbinsX() * h2_surv->GetNbinsY() );
+      *       h2_surv->Draw("colz"); gPad->Update();
+      *       c->cd(2); 
+      *       TH2D* h2_osc = (TH2D*) hn_osc->Projection(1,0);
+      *       h2_osc->SetEntries( h2_osc->GetNbinsX() * h2_osc->GetNbinsY() );
+      *       h2_osc->Draw("colz"); gPad->Update();
+      *       printf("h2_osc integral = %f\n", h2_osc->Integral());
+      *       c->cd(3);
+      *       TH2D* h2_recosc = (TH2D*) hn->Projection(1,0,"A");
+      *       h2_recosc->SetEntries( h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY() );
+      *       h2_recosc->Draw("colz"); gPad->Update();
+      *       printf("h2_recosc integral = %f\n", h2_recosc->Integral());
+      *       printf("rate = %f\n", rate );
+      *
+      *       timer->TurnOn(); timer->Reset(); 
+      *       getchar(); 
+      *       timer->TurnOff();
+      */
+
+     total_rate = scaling * ch.fNormalization;
+
+     //printf("[%s] %s.%s: normalization: %g, rate: %g\n", 
+     //fName.data(), histName.data(), ch.fName.data(), 
+     //ch.fNormalization, scaling * ch.fNormalization);
+     //getchar();
+
+     delete hn_osc;
+     delete hn; 
+   }
+   else {
+     fprintf(stderr, "MSPDFBuilderTHn::AddHistToPDF ERROR: PDF type %i not allowed for %s\n", 
+         pdfType, histName.data()); 
+     exit(EXIT_FAILURE);
+   }
+
+
+   return total_rate;
+}
+
 
 THn* MSPDFBuilderTHn::GetPDF (const std::string& objName) { 
    if (!fTmpPDF) return 0;
@@ -467,7 +589,7 @@ THn* MSPDFBuilderTHn::BuildNadirPDF() const {
 }
 
 THn* MSPDFBuilderTHn::ApplyOscillationProb(const THn* target, const int pdg) {
-  THnD* product = (THnD*) fOscillogram->Clone("hn_osc"); 
+  THnD* product = (THnD*)fOscillogram->Clone("hn_osc"); 
   product->SetNameTitle(Form("%s_osc", target->GetName()), Form("%s_osc", target->GetTitle()));
   product->Reset();
   

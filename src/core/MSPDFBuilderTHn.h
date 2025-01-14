@@ -95,6 +95,9 @@ class MSPDFBuilderTHn : public MSObject
    //! Add scaled histogram to tmp PDF
    double AddHistToPDF(const std::string& histName, double scaling = 1, NeutrinoPropagator* propagator = nullptr);
 
+   //! Add scaled histogram of a single neutrino channel to tmp PDF
+   double AddHistToPDF(const std::string& histName, const std::string& channel, const double scaling = 1, NeutrinoPropagator* propagator = nullptr);
+
    //! Set Seed
    void SetSeed(unsigned int seed) { delete fRnd; fRnd = new TRandom3(seed); }
 
@@ -103,6 +106,10 @@ class MSPDFBuilderTHn : public MSObject
 
    //! Get copy of tmp PDF and reset tmpPDF
    THn* GetPDF (const std::string& objName);
+
+   //! Get MSPDF object
+   inline MSTHnPDF* GetMSPDF(const std::string& name) { return fPDFMap->at(name); }
+   inline const MSTHnPDF* GetMSPDF(const std::string& name) const { return fPDFMap->at(name); }
 
    //! Check is model compoment is a neutrino or a standard component
    bool IsNeutrino(const std::string& name) const {
