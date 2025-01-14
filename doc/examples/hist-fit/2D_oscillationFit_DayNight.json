@@ -2,84 +2,112 @@
   "fittingModel": {
     "oscillation" : {
       "parameters" : {
-        "dm21"        : {"global" : true, "value": 7.5e-5, "range": [7.0e-5, 8.0e-5], "fixed": false, "fitStep": 0.01, "refVal": 7.5e-5},
-        "dm32"        : {"global" : true, "value": 2.5e-3, "range": [1.0e-3, 4.0e-3], "fixed": true , "fitStep": 0.01, "refVal": 2.5e-3},
-        "sinsqTheta23": {"global" : true, "value": 0.561 , "range": [0.2   , 0.8   ], "fixed": true , "fitStep": 0.01, "refVal": 0.561 },
-        "sinsqTheta13": {"global" : true, "value": 0.029 , "range": [0.00  , 0.1   ], "fixed": false, "fitStep": 0.01, "refVal": 0.029 },
-        "sinsqTheta12": {"global" : true, "value": 0.307 , "range": [0.20  , 0.5   ], "fixed": false, "fitStep": 0.01, "refVal": 0.3   }
+        "dm21"        : {"global" : true, "value": 7.500e-5, "range": [1.0e-8, 1.0e-2], "fixed": false, "fitStep": 1e-7, "refVal": 7.500e-5},
+        "dm32"        : {"global" : true, "value": 2.534e-3, "range": [1.0e-3, 4.0e-3], "fixed": true , "fitStep": 0.01, "refVal": 2.534e-3},
+        "sinsqTheta23": {"global" : true, "value": 0.561   , "range": [0.2   , 0.8   ], "fixed": true , "fitStep": 0.01, "refVal": 0.561   },
+        "sinsqTheta13": {"global" : true, "value": 0.029   , "range": [0.00  , 0.1   ], "fixed": true , "fitStep": 0.01, "refVal": 0.029   },
+        "sinsqTheta12": {"global" : true, "value": 0.307   , "range": [0.05  , 0.8   ], "fixed": false, "fitStep": 0.01, "refVal": 0.307   }
       }
     },
     "dataSets": {
       "DUNEday": {
-        "exposure": 200000,
+        "exposure": 20000,
         "detectorResponse" : {
-          "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
+          "nueCCresponseMatrix": { "responseMatrix" : ["b8_pdf.root","nueCCresponseMatrix" ] },
+          "nueESresponseMatrix": { "responseMatrix" : ["b8_pdf.root","nueESresponseMatrix" ] }
         },
         "components" : {
-          "neutron_day": {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":0.5, "pdf":["background_pdf.root","neutron"], "injVal":3.0, "color":  2},
+          "neutron_day" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":2.5, "pdf":["background_pdf.root","neutron"], "injVal":3.0, "color":  2},
           "b8":   { 
-            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1, "refVal":5e6, "pdf":["boron_pdf.root","hb8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
+            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1e4, "refVal":5.45e6, "pdf":["b8_pdf.root","h_b8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
             "channels" : {
               "nueCC" : { 
                 "responseMatrix" : "nueCCresponseMatrix", 
-                "crossSection" : {
-                  "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, 
-                  "reactions" : ["ve40ArCC_Bhattacharya2009.react"],
-                  "source" : { "neutrino" : "12" }
-                }
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ve40ArCC_Bhattacharya2009.react"], "source" : { "neutrino" : "12" } }
+              }, 
+              "nueES" : { 
+                "responseMatrix" : "nueESresponseMatrix", 
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ES.react"], "source" : { "neutrino" : "12" } }
+              },
+              "numuES" : { 
+                "responseMatrix" : "nueESresponseMatrix", 
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ES.react"], "source" : { "neutrino" : "14" } }
               }
-            }
+            } 
+          },
+          "hep":   { 
+            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1e1, "refVal":7.0e3, "pdf":["hep_pdf.root","h_hep"], "injVal":7.9e3, "color":801, "oscillation" : true, 
+            "channels" : {
+              "nueCC" : { 
+                "responseMatrix" : "nueCCresponseMatrix", 
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ve40ArCC_Bhattacharya2009.react"], "source" : { "neutrino" : "12" } }
+              } 
+            } 
           }
         },
         "projectOnAxis": [0],
         "axis": { 
-          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,12], "rebin" : 1}
+          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,19], "rebin" : 1}
         },
         "normalizePDFInUserRange": false 
       },
       "DUNEnight": {
-        "exposure": 200000,
+        "exposure": 20000,
         "detectorResponse" : {
-          "nueCCresponseMatrix": { "responseMatrix" : ["boron_pdf.root","nueCCresponseMatrix" ] }
+          "nueCCresponseMatrix": { "responseMatrix" : ["b8_pdf.root","nueCCresponseMatrix" ] },
+          "nueESresponseMatrix": { "responseMatrix" : ["b8_pdf.root","nueESresponseMatrix" ] }
         },
         "nadirExposurePDF" : {
           "nadir_surf" : {"pdf" : ["nadir.root","cos_nadir"]}
         },
         "components" : {
-          "neutron_night": {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":0.5, "pdf":["background_pdf.root","neutron"], "injVal":3.0, "color":  2},
+          "neutron_night" : {"type" : "component", "global" : false, "fixed": false, "range":[1e-308, 1e+3], "fitStep":1, "refVal":2.5, "pdf":["background_pdf.root","neutron"], "injVal":3.0, "color":  2},
           "b8":   { 
-            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1, "refVal":5e6, "pdf":["boron_pdf.root","hb8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
+            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1e4, "refVal":5.45e6, "pdf":["b8_pdf.root","h_b8"], "injVal":5.45e6, "color":635, "oscillation" : true, 
             "channels" : {
               "nueCC" : { 
                 "responseMatrix" : "nueCCresponseMatrix", 
-                "crossSection" : {
-                  "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, 
-                  "reactions" : ["ve40ArCC_Bhattacharya2009.react"],
-                  "source" : { "neutrino" : "12" }
-                }
+                "crossSection" : {"target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ve40ArCC_Bhattacharya2009.react"], "source" : { "neutrino" : "12" } }
+              }, 
+              "nueES" : { 
+                "responseMatrix" : "nueESresponseMatrix", 
+                "crossSection" : {"target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ES.react"], "source" : { "neutrino" : "12" } }
+              },
+              "numuES" : { 
+                "responseMatrix" : "nueESresponseMatrix", 
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ES.react"], "source" : { "neutrino" : "14" } }
               }
             }
+          },
+          "hep":   { 
+            "type" : "neutrino", "global": true, "fixed": false, "range":[1e-308, 1e+8], "fitStep":1e1, "refVal":7.0e3, "pdf":["hep_pdf.root","h_hep"], "injVal":7.9e3, "color":801, "oscillation" : true, 
+            "channels" : {
+              "nueCC" : { 
+                "responseMatrix" : "nueCCresponseMatrix", 
+                "crossSection" : { "target" : {"nuclides" : [1000180400], "atom_fractions" : [1.0] }, "reactions" : ["ve40ArCC_Bhattacharya2009.react"], "source" : { "neutrino" : "12" } }
+              } 
+            } 
           }
         },
         "projectOnAxis": [0,1],
         "axis": { 
-          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,12], "rebin" : 1},
-          "1": {"label" : "cos_nadir", "limits" : [-1.0,  1.0], "nbins" : 20, "range": [-1.0,0.0], "rebin" : 1}
+          "0": {"label" : "energy"   , "limits" : [-1.0, 20.0], "nbins" : 42, "range": [5,19], "rebin" : 1},
+          "1": {"label" : "cos_nadir", "limits" : [-1.0,  1.0], "nbins" : 50, "range": [-1.0,0.0], "rebin" : 1}
         },
         "normalizePDFInUserRange": false 
       }
     },
     "pulls": {
-        "sinsqTheta13" : { "type": "gauss", "centroid": 0.0295, "sigma": 0.0006}
+        "sinsqTheta13" : { "type": "gauss", "centroid": 0.0295, "sigma": 0.0006},
+        "sinsqTheta23" : { "type": "gauss", "centroid": 0.561, "sigma": 0.015}
     }
   },
   "MinimizerSteps": { 
-    "0":  {"method": "SIMPLEX", "resetMinuit":  true, "maxCall": 1e4, "tollerance": 1e-1, "verbosity": -1},
-    "1":  {"method":"MINIMIZE", "resetMinuit": false, "maxCall": 1e8, "tollerance": 1e-1, "verbosity": -1}
+    "1":  {"method":"MINIMIZE", "resetMinuit": true, "maxCall": 1e8, "tollerance": 1e-8, "verbosity": -1}
   },
   "MC": { 
-    "realizations":  1e0,
-    "procedure" : "asimov",
+    "realizations":  1e2,
+    "procedure" : "bin_sampling",
     "seed": 1,
     "enablePoissonFluctuations": false,
     "outputFile": "tmp_2D_fitMultiSets.root"
