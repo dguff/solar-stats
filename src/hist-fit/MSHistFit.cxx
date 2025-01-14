@@ -35,8 +35,6 @@
 #include "MSModelPulls.h"
 #include "MSMinimizer.h"
 
-using namespace std;
-
 namespace mst {
 
   /* 
@@ -638,22 +636,34 @@ namespace mst {
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
           ["components"][parName.c_str()]["injVal"].GetDouble();
 
-        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
-        parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
-        double count_rate = pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
-        printf("count_rate = %f\n", count_rate);
+        //printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n", 
+        //parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        double count_rate = 0.0; 
+        if (pdfBuilder->IsNeutrino( parName ) ) {
+          const MSTHnPDFNeutrino* pdf = dynamic_cast<const MSTHnPDFNeutrino*>(pdfBuilder->GetMSPDF(parName));
+          const auto& channels = pdf->GetChannels();
+          for (const auto& channel : channels) {
+            //printf("\tadding channel %s\n", channel.fName.data());
+            double channel_rate = 0.0; 
+            channel_rate = pdfBuilder->AddHistToPDF(parName.c_str(), 
+                channel.fName.data(), trueVal, fitter->GetNeutrinoPropagator());
+            count_rate += channel_rate;
+            //printf("\tchannel rate: %f\n", channel_rate);
+          }
+        }
+        else {
+          count_rate = pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        }
+        //printf("count_rate = %f\n", count_rate);
         totalCounts += count_rate * mod->GetExposure();
-        getchar();
       }
       // register new data set. The previous one is delete inside the model
       // Define whether to add poission fluctuation to the number of events
-      printf("Generating new dataset with %f counts\n", totalCounts);
       const std::string sampling_procedure = json["MC"]["procedure"].GetString();
       mod->SetDataSet(pdfBuilder->GetMCRealizaton(
             totalCounts, 
             json["MC"]["enablePoissonFluctuations"].GetBool(), 
             sampling_procedure));
-      getchar();
     }
     return true;
   }
@@ -734,20 +744,44 @@ namespace mst {
             pdfBuilder->ResetPDF();
             mst::MSParameter*  par = mod->GetParameter(parName.c_str());
             if (par->IsInput() == false) continue;
-            pdfBuilder->AddHistToPDF(parName, mod->GetExposure()*par->GetFitBestValue(), fitter->GetNeutrinoPropagator());
-            auto pdf_tmp = pdfBuilder->GetPDF("");
+            if (pdfBuilder->IsNeutrino( parName ) ) {
+              const MSTHnPDFNeutrino* pdf = dynamic_cast<const MSTHnPDFNeutrino*>(pdfBuilder->GetMSPDF(parName));
+              const auto& channels = pdf->GetChannels();
+              for (const auto& channel : channels) {
+                printf("\tdrawing %s channel %s\n", parName.data(), channel.fName.data());
+                pdfBuilder->AddHistToPDF(parName.c_str(), 
+                    channel.fName.data(), mod->GetExposure()*par->GetFitBestValue(), fitter->GetNeutrinoPropagator());
+                auto pdf_tmp = pdfBuilder->GetPDF("");
+                auto pdf_tmp_pr = pdf_tmp->Projection(d);
+                pdf_tmp_pr->SetName(Form("%s.%s",parName.c_str(), channel.fName.data()));
+                pdf_tmp_pr->SetTitle(Form("%s - %s", parName.c_str(), channel.fName.data()));
+                int color = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
+                  ["components"][parName.c_str()]["color"].GetInt();
+                pdf_tmp_pr->SetLineColor(color);
+                pdf_tmp_pr->SetLineWidth(2);
+                pdf_tmp_pr->DrawCopy("hist same");
 
-            auto pdf_tmp_pr = pdf_tmp->Projection(d);
-            pdf_tmp_pr->SetName(parName.c_str());
-            pdf_tmp_pr->SetTitle(parName.c_str());
-            int color = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
-              ["components"][parName.c_str()]["color"].GetInt();
-            pdf_tmp_pr->SetLineColor(color);
-            pdf_tmp_pr->SetLineWidth(2);
-            pdf_tmp_pr->DrawCopy("hist same");
+                delete pdf_tmp_pr;
+                delete pdf_tmp;
+              }
+            }
+            else {
+              pdfBuilder->AddHistToPDF(parName, mod->GetExposure()*par->GetFitBestValue(), fitter->GetNeutrinoPropagator());
+              auto pdf_tmp = pdfBuilder->GetPDF("");
 
-            delete pdf_tmp_pr;
-            delete pdf_tmp;
+              auto pdf_tmp_pr = pdf_tmp->Projection(d);
+              pdf_tmp_pr->SetName(parName.c_str());
+              pdf_tmp_pr->SetTitle(parName.c_str());
+              int color = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
+                ["components"][parName.c_str()]["color"].GetInt();
+              pdf_tmp_pr->SetLineColor(color);
+              pdf_tmp_pr->SetLineWidth(2);
+              pdf_tmp_pr->DrawCopy("hist same");
+
+              delete pdf_tmp_pr;
+              delete pdf_tmp;
+            }
+
           }
 
           // Build and Draw best fit
@@ -981,15 +1015,20 @@ namespace mst {
 
       // perform actual scan
       {
-        // index used to define the points to scans
-        // best fit value and error
         fitter->SyncFitParameters(true);
+
+        const int n_fits = nPts1*nPts2;
+        int counter = 0;
         
         for (int j1 = 1; j1 <= hpll->GetNbinsX(); j1++) {
           for (int j2 = 1; j2 <= hpll->GetNbinsY(); j2++) {
             const double t1Val = hpll->GetXaxis()->GetBinCenter(j1);
             const double t2Val = hpll->GetYaxis()->GetBinCenter(j2);
             Scan(t1Val, t2Val);
+            counter++;
+            if (counter % 100 == 0) {
+              printf("Scanning %d/%d\n", counter, n_fits);
+            }
           }
         }
 
@@ -1024,6 +1063,62 @@ namespace mst {
       return hpll;
     }
 
+/**
+ * @brief Get contour for a pair of parameters
+ *
+ * @param json json configuration file
+ * @param fitter MSMinimizer instance
+ * @param parName1 name of parameter 1
+ * @param parName2 name of parameter 2
+ * @param contour level
+ * @param nPoints number of points
+ * @return contour TGraph object
+ */
+inline TGraph* GetContour(MSMinimizer* fitter, 
+        const string& parName1, const string& parName2, const double nsigma, 
+        const int nPoints) 
+    {
+      // retrieve parameters of interest (poi) from the fitter
+      mst::MSParameter* poi1  = fitter->GetParameter(parName1.c_str());
+      if (!poi1) {
+        std::cerr << "Profile >> error: parameter " << parName1 << " not found\n";
+        return nullptr;
+      }
+      mst::MSParameter* poi2  = fitter->GetParameter(parName2.c_str());
+      if (!poi2) {
+        std::cerr << "Profile >> error: parameter " << parName2 << " not found\n";
+        return nullptr;
+      }
+
+      printf("Building %g sigma countour for %s and %s (%i points)\n",
+          nsigma, parName1.c_str(), parName2.c_str(), nPoints);
+
+      // save best fit values to restore the status of the parameters after the
+      // scanning
+      vector<double> fitBestValue    (fitter->GetParameterMap()->size(), -1);
+      vector<double> fitBestValueErr (fitter->GetParameterMap()->size(), -1);
+      {
+        int parIndex = 0;
+        for ( auto it : *fitter->GetParameterMap()) {
+          fitBestValue.at(parIndex)    = it.second->GetFitBestValue();
+          fitBestValueErr.at(parIndex) = it.second->GetFitBestValueErr();
+          parIndex++;
+        }
+      }
+
+      TGraph* gContour = nullptr;
+      TMinuit* minuit = fitter->GetMinuit();
+
+      const int ipar1 = fitter->GetMinuitParameterIndex(parName1.c_str());
+      const int ipar2 = fitter->GetMinuitParameterIndex(parName2.c_str());
+
+      minuit->SetErrorDef(nsigma*nsigma);
+      gContour = static_cast<TGraph*>(minuit->Contour(nPoints, ipar1, ipar2));
+
+      minuit->SetErrorDef(0.5); 
+      return gContour;
+    }
+
     /*
      * Build Profile for each parameter of the fit
      */
@@ -1032,10 +1127,10 @@ namespace mst {
         const double NLL, const int nPts) {
 
       // retrieve the canvas or initialize it
-      delete gROOT->GetListOfCanvases()->FindObject("cPLL");
       TCanvas* cc = nullptr;
 
       if (json["MC"].HasMember("profile2D")) {
+        delete gROOT->GetListOfCanvases()->FindObject("cPL2D");
         const int nWindows = json["MC"]["profile2D"].Size();
         cc = new TCanvas("cPL2D", "profile log likelihoods 2D",
             400*ceil(nWindows/2.0), 400*ceil(nWindows/2.0));
@@ -1046,7 +1141,7 @@ namespace mst {
         for (const auto& window : json["MC"]["profile2D"].GetArray()) {
           TH2D* tmp = Profile2D(json, fitter, 
               window["par1"].GetString(), 
-              window["par2"].GetString(), 3.0, 
+              window["par2"].GetString(), 5.0, 
               window["nPoints1"].GetInt(), window["nPoints2"].GetInt());
           cc->cd( iwindow );
           tmp->Draw("colz");
@@ -1056,6 +1151,7 @@ namespace mst {
       }
       else if (json["MC"].HasMember("profile1D")) {
         const int nWindows = json["MC"]["profile1D"].Size();
+        delete gROOT->GetListOfCanvases()->FindObject("cPL1D");
         cc = new TCanvas("cPL1D", "profile log likelihoods 1D",
             400*ceil(nWindows/2.0), 400*ceil(nWindows/2.0));
         cc->DivideSquare( nWindows );
@@ -1070,6 +1166,31 @@ namespace mst {
           cc->cd( iwindow );
           tmp->Draw("apl");
           cc->Update();
+          iwindow++;
+        }
+      }
+      else if (json["MC"].HasMember("contour")) {
+        const int nWindows = json["MC"]["contour"].Size();
+        delete gROOT->GetListOfCanvases()->FindObject("cContour");
+        cc = new TCanvas("cContour", "contour",
+            400*ceil(nWindows/2.0), 400*ceil(nWindows/2.0));
+        cc->DivideSquare( nWindows );
+
+        int iwindow = 1;
+        for (const auto& pair : json["MC"]["contour"].GetArray()) {
+          cc->cd( iwindow );
+
+          int isigma = 0;
+          for (const auto& jsigma : pair["nsigma"].GetArray()) {
+            TGraph* tmp = GetContour(fitter, 
+                pair["par1"].GetString(), 
+                pair["par2"].GetString(), 
+                jsigma.GetDouble(), 
+                pair["nPoints"].GetInt());
+            tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jsigma.GetDouble()));
+            const TString opt = isigma == 0 ? "apl" : "pl";
+            tmp->Draw(opt);
+          }
           iwindow++;
         }
       }

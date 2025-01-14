@@ -151,9 +151,12 @@ int main(int argc, char** argv)
 
       ofile.cd();
       mst::GetCanvasFit(json,fitter)->Write(0, TObject::kOverwrite);
-      if (gBuildProfiles) mst::GetCanvasProfiles(json, fitter,
-                             TMath::ChisquareQuantile(gProfilesCL,1),
-                             gProfilePts)->Write(0, TObject::kOverwrite);
+      if (gBuildProfiles) 
+        mst::GetCanvasProfiles(
+            json, fitter,
+            TMath::ChisquareQuantile(gProfilesCL,1),
+            gProfilePts)->Write(0, TObject::kOverwrite);
+
       ofile.Close();
       theApp.Run();
    }
