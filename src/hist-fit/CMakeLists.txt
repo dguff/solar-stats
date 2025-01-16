@@ -18,6 +18,12 @@ ROOT_GENERATE_DICTIONARY(G__sstats-hist-fit
   LINKDEF ${SSTATS_HISTFIT_DIR}/m-stats-hist-fit_LinkDef.h
   MODULE sstats-hist-fit
 )
+set(sstats_hist-fit_resources 
+  ${CMAKE_CURRENT_BINARY_DIR}/G__sstats-hist-fit.cxx
+  ${CMAKE_CURRENT_BINARY_DIR}/libsstats-hist-fit.rootmap 
+  ${CMAKE_CURRENT_BINARY_DIR}/libsstats-hist-fit_rdict.pcm
+  )
+
 
 # Executable source
 set(EXECUTABLE_NAME solar_stats)
@@ -34,6 +40,7 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES
 
 # Installation for library headers and executables
 install(TARGETS sstats-hist-fit LIBRARY DESTINATION ${SSTATS_LIB_DIR})
+install(FILES ${sstats_hist-fit_resources} DESTINATION "${SSTATS_LIB_DIR}")
 install(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION ${SSTATS_BIN_DIR})
 
 
