@@ -107,6 +107,7 @@ TMinuit* MSMinimizer::InitializeMinuit (int verbosity, double errVal)
 
    SetMinuitVerbosity(verbosity);
    SetMinuitErrVal(errVal);
+   SetMinuitPrecision( 1e-16 ); 
 
    return fMinuit;
 }
@@ -252,7 +253,7 @@ void MSMinimizer::Minimize(const std::string& minimizer, bool resetFitStartValue
    // Set maxcalls
    fMinuitArglist[0] = fMinuitMaxCalls;
    // Set tolerance
-   fMinuitArglist[1] = fMinuitTollerance;
+   fMinuitArglist[1] = fMinuitTolerance;
    // Run actual minimization
    fMinuit->mnexcm(minimizer.c_str(), fMinuitArglist, 2, fMinuitErrorFlag);
 

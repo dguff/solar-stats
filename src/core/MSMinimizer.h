@@ -136,7 +136,10 @@ class MSMinimizer : public MSObject
       void SetMinuitMaxCalls (int maxcalls) { fMinuitMaxCalls = maxcalls; }
 
       //! Set minuit tolerance
-      void SetMinuitTolerance (double tolerance) { fMinuitTollerance = tolerance; }
+      void SetMinuitTolerance (double tolerance) { fMinuitTolerance = tolerance; }
+
+      //! Set minuit precision
+      void SetMinuitPrecision (double precision) { fMinuitPrecision = precision; }
 
       //! Get the pointer to minuit
       TMinuit* GetMinuit() const { return fMinuit;}
@@ -220,7 +223,10 @@ class MSMinimizer : public MSObject
       int fMinuitMaxCalls {2000};
 
       //! Tolerance on the maximum error during minimization
-      double fMinuitTollerance {1e-6};
+      double fMinuitTolerance {1e-6};
+
+      //! Numerical precision of the minimizer
+      double fMinuitPrecision {1e-16};
 
       //! Minimum of the negative log likelihood function
       //! Synced with mnstat-fmin
