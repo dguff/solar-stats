@@ -1090,8 +1090,8 @@ inline TGraph* GetContour(MSMinimizer* fitter,
         return nullptr;
       }
 
-      printf("Building %g sigma countour for %s and %s (%i points)\n",
-          nsigma, parName1.c_str(), parName2.c_str(), nPoints);
+      const int ipar1 = fitter->GetMinuitParameterIndex(parName1.c_str());
+      const int ipar2 = fitter->GetMinuitParameterIndex(parName2.c_str());
 
       // save best fit values to restore the status of the parameters after the
       // scanning
@@ -1109,10 +1109,7 @@ inline TGraph* GetContour(MSMinimizer* fitter,
       TGraph* gContour = nullptr;
       TMinuit* minuit = fitter->GetMinuit();
 
-      const int ipar1 = fitter->GetMinuitParameterIndex(parName1.c_str());
-      const int ipar2 = fitter->GetMinuitParameterIndex(parName2.c_str());
-
-      minuit->SetErrorDef(nsigma*nsigma);
+      minuit->SetErrorDef(0.5*nsigma*nsigma);
       gContour = static_cast<TGraph*>(minuit->Contour(nPoints, ipar1, ipar2));
 
       minuit->SetErrorDef(0.5); 
@@ -1161,7 +1158,7 @@ inline TGraph* GetContour(MSMinimizer* fitter,
         for (const auto& window : json["MC"]["profile1D"].GetArray()) {
           TGraph* tmp = Profile(json, fitter, 
               window["par"].GetString(), 
-              3.0, 
+              5.0, 
               window["nPoints"].GetInt());
           cc->cd( iwindow );
           tmp->Draw("apl");
