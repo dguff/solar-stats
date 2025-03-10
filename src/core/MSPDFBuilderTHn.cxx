@@ -217,32 +217,32 @@ namespace mst
 
         fTmpPDF->Add(hn, scaling * exposure_conversion);
 
-        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-        TCanvas *c = new TCanvas("c", "c", 1200, 1000);
-        c->Divide(3, 1);
-        c->cd(1);
-        TH2D *h2_surv = fOscillogram->Projection(1, 0);
-        h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
-        h2_surv->Draw("colz");
-        gPad->Update();
-        c->cd(2);
-        TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
-        h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
-        h2_osc->Draw("colz");
-        gPad->Update();
-        printf("h2_osc integral = %f\n", h2_osc->Integral());
-        c->cd(3);
-        TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
-        h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
-        h2_recosc->Draw("colz");
-        gPad->Update();
-        printf("h2_recosc integral = %f\n", h2_recosc->Integral());
-        // printf("rate = %f\n", rate);
+        // TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+        // TCanvas *c = new TCanvas("c", "c", 1200, 1000);
+        // c->Divide(3, 1);
+        // c->cd(1);
+        // TH2D *h2_surv = fOscillogram->Projection(1, 0);
+        // h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
+        // h2_surv->Draw("colz");
+        // gPad->Update();
+        // c->cd(2);
+        // TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
+        // h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
+        // h2_osc->Draw("colz");
+        // gPad->Update();
+        // printf("h2_osc integral = %f\n", h2_osc->Integral());
+        // c->cd(3);
+        // TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
+        // h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
+        // h2_recosc->Draw("colz");
+        // gPad->Update();
+        // printf("h2_recosc integral = %f\n", h2_recosc->Integral());
+        // // printf("rate = %f\n", rate);
 
-        timer->TurnOn();
-        timer->Reset();
-        getchar();
-        timer->TurnOff();
+        // timer->TurnOn();
+        // timer->Reset();
+        // getchar();
+        // timer->TurnOff();
 
         total_rate += scaling * channel.fNormalization;
 
@@ -284,7 +284,6 @@ namespace mst
 
   double MSPDFBuilderTHn::AddHistToPDF(const std::string &histName, const string &channel, const double scaling, NeutrinoPropagator *propagator)
   {
-    std::cout << "START" << std::endl;
     // define the total rate
     double total_rate = 0;
     // find hist by name
@@ -530,8 +529,6 @@ namespace mst
         realization->Fill(rndPoint);
       }
     }
-
-    std::cout << "END" << std::endl;
 
     if (rndTmpCopy != nullptr)
       gRandom = rndTmpCopy;
