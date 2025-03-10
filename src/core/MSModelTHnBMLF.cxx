@@ -18,80 +18,92 @@
 #include "MSMath.h"
 #include "MSModelTHnBMLF.h"
 
-namespace mst {
-
-double MSModelTHnBMLF::NLogLikelihood(double* par, NeutrinoPropagator* propagator)
+namespace mst
 {
-   fPDFBuilder->ResetPDF();
 
-   // retrieve parameters from Minuit and compute the total exposure
-   for (int i =0; i < fParNameList->size(); i++) {
-      const auto& parName = fParNameList->at(i);
-      auto mspar = GetParameter(parName);
-      if (mspar->IsInput() == false) continue;
-      const double par_cts = GetMinuitParameter(par, parName);
-      fPDFBuilder->AddHistToPDF(parName,  par_cts, propagator);
-   }
-   //for (const auto& par_itr : *fParameters) {
-     //if (par_itr.second->IsInput()) {
-       //const std::string par_name = GetLocalName( par_itr.second->GetName() );
-       //const double par_cts = GetMinuitParameter(par, par_name);
-       //fPDFBuilder->AddHistToPDF(par_name, par_cts, propagator);
-     //}
-   //}
+   double MSModelTHnBMLF::NLogLikelihood(double *par, NeutrinoPropagator *propagator)
+   {
+      fPDFBuilder->ResetPDF();
 
-   const THn* pdf = fPDFBuilder->GetPDF("tmpPDF");
-   if (pdf == 0) {
-      std::cerr << "NLogLikelihood >> error: PDFBuilder returned unknown object type\n";
-      exit(1);
-   }
-   if (fDataSet == 0) {
-      std::cerr << "NLogLikelihood >> error: DataHist not set\n";
-      exit(1);
-   }
+      // retrieve parameters from Minuit and compute the total exposure
+      for (int i = 0; i < fParNameList->size(); i++)
+      {
+         const auto &parName = fParNameList->at(i);
+         auto mspar = GetParameter(parName);
+         if (mspar->IsInput() == false)
+            continue;
+         const double par_cts = GetMinuitParameter(par, parName);
+         fPDFBuilder->AddHistToPDF(parName, par_cts, propagator);
+      }
+      // for (const auto& par_itr : *fParameters) {
+      // if (par_itr.second->IsInput()) {
+      // const std::string par_name = GetLocalName( par_itr.second->GetName() );
+      // const double par_cts = GetMinuitParameter(par, par_name);
+      // fPDFBuilder->AddHistToPDF(par_name, par_cts, propagator);
+      //}
+      //}
 
-   double logLikelihood = 0.0;
-   // loop over dimensions
-   auto it = fDataSet->CreateIter(kTRUE);
-   Long64_t i = 0;
-   int coords[fDataSet->GetNdimensions()];
-   while ((i = it->Next(coords)) >= 0) {
-     //printf("[%i] -> (%g): bc = %g - pdf = %g\n", 
-         //coords[0],
-         //fDataSet->GetAxis(0)->GetBinCenter(coords[0]),
-         //fDataSet->GetBinContent(i), 
-         //fExposure*pdf->GetBinContent(i));
-     logLikelihood += MSMath::LogPoisson(fDataSet->GetBinContent(i), 
-         fExposure*pdf->GetBinContent(i));
-   }
+      const THn *pdf = fPDFBuilder->GetPDF("tmpPDF");
+      if (pdf == 0)
+      {
+         std::cerr << "NLogLikelihood >> error: PDFBuilder returned unknown object type\n";
+         exit(1);
+      }
+      if (fDataSet == 0)
+      {
+         std::cerr << "NLogLikelihood >> error: DataHist not set\n";
+         exit(1);
+      }
 
-   fPDFBuilder->ClearOscillationProb();
+      double logLikelihood = 0.0;
+      // loop over dimensions
+      auto it = fDataSet->CreateIter(kTRUE);
+      Long64_t i = 0;
+      int coords[fDataSet->GetNdimensions()];
+      while ((i = it->Next(coords)) >= 0)
+      {
+         // printf("[%i] -> (%g): bc = %g - pdf = %g\n",
+         // coords[0],
+         // fDataSet->GetAxis(0)->GetBinCenter(coords[0]),
+         // fDataSet->GetBinContent(i),
+         // fExposure*pdf->GetBinContent(i));
+         logLikelihood += MSMath::LogPoisson(fDataSet->GetBinContent(i),
+                                             fExposure * pdf->GetBinContent(i));
+      }
 
-   delete pdf;
-   delete it;
-   return (-logLikelihood);
-}
+      fPDFBuilder->ClearOscillationProb();
 
-bool MSModelTHnBMLF::AreInputHistsConsistent () 
-{
-   const THn* pdf = fPDFBuilder->GetPDF("tmpPDF");
-   if (pdf == 0) {
-      std::cerr << "error: PDFBuilder returned unknown object type\n";
-      exit(1);
-   }
-   if (fDataSet == 0) {
-      std::cerr << "error: DataHist not set\n";
-      exit(1);
+      delete pdf;
+      delete it;
+      return (-logLikelihood);
    }
 
-   if (fDataSet->GetNdimensions() != pdf->GetNdimensions()) return false;
-   for (int i = 0; i < fDataSet->GetNdimensions(); i++) {
-      if (fDataSet->GetAxis(i)->GetNbins() != pdf->GetAxis(i)->GetNbins()) return false;
-      if (fDataSet->GetAxis(i)->GetXmin()  != pdf->GetAxis(i)->GetXmin() ) return false;
-      if (fDataSet->GetAxis(i)->GetXmax()  != pdf->GetAxis(i)->GetXmax() ) return false;
-   }
-   return true;
+   bool MSModelTHnBMLF::AreInputHistsConsistent()
+   {
+      const THn *pdf = fPDFBuilder->GetPDF("tmpPDF");
+      if (pdf == 0)
+      {
+         std::cerr << "error: PDFBuilder returned unknown object type\n";
+         exit(1);
+      }
+      if (fDataSet == 0)
+      {
+         std::cerr << "error: DataHist not set\n";
+         exit(1);
+      }
 
-}
+      if (fDataSet->GetNdimensions() != pdf->GetNdimensions())
+         return false;
+      for (int i = 0; i < fDataSet->GetNdimensions(); i++)
+      {
+         if (fDataSet->GetAxis(i)->GetNbins() != pdf->GetAxis(i)->GetNbins())
+            return false;
+         if (fDataSet->GetAxis(i)->GetXmin() != pdf->GetAxis(i)->GetXmin())
+            return false;
+         if (fDataSet->GetAxis(i)->GetXmax() != pdf->GetAxis(i)->GetXmax())
+            return false;
+      }
+      return true;
+   }
 
 } // namespace mst
