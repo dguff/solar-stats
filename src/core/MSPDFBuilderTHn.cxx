@@ -279,6 +279,13 @@ namespace mst
       exit(EXIT_FAILURE);
     }
 
+    // std::cout << "Binning information of fTmpPDF:" << std::endl;
+    // for (int i = 0; i < fTmpPDF->GetNdimensions(); ++i)
+    // {
+    //   TAxis *axis = fTmpPDF->GetAxis(i);
+    //   std::cout << "Axis " << i << ": " << axis->GetNbins() << " bins, range [" << axis->GetXmin() << ", " << axis->GetXmax() << "]" << std::endl;
+    // }
+
     return total_rate;
   }
 
@@ -365,18 +372,14 @@ namespace mst
         xmax.push_back(axis.fMax);
       }
 
-      // Rebin hn_osc using the extracted binning information
-      THnD *hn_osc_rebinned = dynamic_cast<THnD *>(hn_osc->Clone());
-      for (size_t i = 0; i < axes.size(); ++i)
-      {
-        hn_osc_rebinned->GetAxis(i)->Set(nbins[i], xmin[i], xmax[i]);
-      }
+      // Rebin the fine histogram (hn_osc) into a new histogram with coarse binning
+      THn *hn_osc_coarse = MSPDFBuilderTHn::RebinHistogram(hn_osc, respMatrix);
 
       // Call ApplyResponseMatrixAndCrossSection with the rebinned histogram
-      hn = ApplyResponseMatrixAndCrossSection(hn_osc_rebinned, respMatrix, ch);
+      hn = ApplyResponseMatrixAndCrossSection(hn_osc_coarse, respMatrix, ch);
 
       // Clean up
-      delete hn_osc_rebinned;
+      delete hn_osc_coarse;
 
       response_matrix_applied = true;
       ch.fNormalization *= exposure_conversion;
@@ -944,4 +947,49 @@ namespace mst
     return product;
   }
 
+  // Example function to rebin a fine histogram into a coarse one
+  THn *MSPDFBuilderTHn::RebinHistogram(const THn *fineHistogram, const THn *coarseTemplate)
+  {
+    // Create a new histogram with coarse binning based on the template
+    THn *coarseHistogram = dynamic_cast<THn *>(coarseTemplate->Clone());
+    coarseHistogram->Reset(); // Clear existing bin contents
+
+    const int ndim = fineHistogram->GetNdimensions();
+
+    // Create arrays to hold bin indices
+    int fineCoords[ndim];
+    int coarseCoords[ndim];
+
+    // Iterator over the fine histogram
+    auto *it = fineHistogram->CreateIter(true);
+
+    while (it->Next(fineCoords) >= 0)
+    {
+      // Map each dimension's fine bin to the corresponding coarse bin
+      for (int dim = 0; dim < ndim; ++dim)
+      {
+        int fineBins = fineHistogram->GetAxis(dim)->GetNbins();
+        int coarseBins = coarseHistogram->GetAxis(dim)->GetNbins();
+        // Calculate the factor: assumes fineBins is an integer multiple of coarseBins
+        int factor = fineBins / coarseBins;
+        // Map fine bin to coarse bin (adjusting for ROOT's 1-based indexing)
+        coarseCoords[dim] = (fineCoords[dim] - 1) / factor + 1;
+      }
+
+      // Get the content and error from the fine bin
+      double content = fineHistogram->GetBinContent(fineCoords);
+      double error = fineHistogram->GetBinError(fineCoords);
+
+      // Retrieve the current content in the corresponding coarse bin
+      double oldContent = coarseHistogram->GetBinContent(coarseCoords);
+      double oldError = coarseHistogram->GetBinError(coarseCoords);
+
+      // Accumulate the contents and combine errors in quadrature
+      coarseHistogram->SetBinContent(coarseCoords, oldContent + content);
+      coarseHistogram->SetBinError(coarseCoords, std::sqrt(oldError * oldError + error * error));
+    }
+
+    delete it;
+    return coarseHistogram;
+  }
 } // namespace mst
