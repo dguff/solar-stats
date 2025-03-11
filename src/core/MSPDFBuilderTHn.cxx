@@ -163,7 +163,7 @@ namespace mst
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
       size_t iaxis = 0;
-      for (const auto &axis : fInternalHandler.GetAxes())
+      for (const auto &axis : fHandler.GetAxes())
       {
         if (axis.fSetRange)
         {
@@ -265,7 +265,7 @@ namespace mst
       }
       else
       {
-        hn = im->second->GetTHn();
+        hn = MSPDFBuilderTHn::RebinHistogram(im->second->GetTHn(), fTmpPDF);
       }
       total_rate = scaling;
       fTmpPDF->Add(hn, scaling);
@@ -308,7 +308,7 @@ namespace mst
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
       size_t iaxis = 0;
-      for (const auto &axis : fInternalHandler.GetAxes())
+      for (const auto &axis : fHandler.GetAxes())
       {
         if (axis.fSetRange)
         {
@@ -359,32 +359,15 @@ namespace mst
         exit(EXIT_FAILURE);
       }
       THnD *respMatrix = dynamic_cast<THnD *>(im_resp->second);
-      // Extract binning information from fHandler
-      const auto &axes = fHandler.GetAxes();
-      std::vector<int> nbins;
-      std::vector<double> xmin;
-      std::vector<double> xmax;
-
-      for (const auto &axis : axes)
-      {
-        nbins.push_back(axis.fNbins);
-        xmin.push_back(axis.fMin);
-        xmax.push_back(axis.fMax);
-      }
-
-      // Rebin the fine histogram (hn_osc) into a new histogram with coarse binning
-      THn *hn_osc_coarse = MSPDFBuilderTHn::RebinHistogram(hn_osc, respMatrix);
 
       // Call ApplyResponseMatrixAndCrossSection with the rebinned histogram
-      hn = ApplyResponseMatrixAndCrossSection(hn_osc_coarse, respMatrix, ch);
-
-      // Clean up
-      delete hn_osc_coarse;
+      hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, ch);
 
       response_matrix_applied = true;
       ch.fNormalization *= exposure_conversion;
 
       fTmpPDF->Add(hn, scaling * exposure_conversion);
+
       /*
        *       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
        *       TCanvas* c = new TCanvas("c", "c", 1200, 1000);
@@ -660,7 +643,7 @@ namespace mst
 
     // get the nadir axis settings from the handler
     MSTHnHandler::axis nadir_axis_settings;
-    for (const auto &axis : fHandler.GetAxes())
+    for (const auto &axis : fInternalHandler.GetAxes())
     {
       TString label = axis.fLabel;
       if (label.Contains("nadir", TString::kIgnoreCase))
@@ -771,6 +754,7 @@ namespace mst
 
   THn *MSPDFBuilderTHn::ApplyResponseMatrix(const THn *target, const THn *responseMatrix)
   {
+    target = MSPDFBuilderTHn::RebinHistogram(target, responseMatrix);
     // TODO: make these defined in configuration file
     const int iaxis_transform_target = 0;
     const int iaxis_transform_response = 1;
@@ -836,6 +820,8 @@ namespace mst
   THn *MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn *target,
                                                            const THn *responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t &channel)
   {
+    target = MSPDFBuilderTHn::RebinHistogram(target, responseMatrix);
+
     // TODO: make these defined in configuration file
     const int iaxis_transform_target = 0;
     const int iaxis_transform_response = 1;
