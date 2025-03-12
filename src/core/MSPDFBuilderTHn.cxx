@@ -158,12 +158,12 @@ namespace mst
     // check if the temporary PDF exist already
     if (!fTmpPDF)
     {
-      fTmpPDF = fHandler.CreateHn();
+      fTmpPDF = fInternalHandler.CreateHn();
       fTmpPDF->SetName("privatePDF");
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
       size_t iaxis = 0;
-      for (const auto &axis : fHandler.GetAxes())
+      for (const auto &axis : fInternalHandler.GetAxes())
       {
         if (axis.fSetRange)
         {
@@ -217,32 +217,32 @@ namespace mst
 
         fTmpPDF->Add(hn, scaling * exposure_conversion);
 
-        // TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-        // TCanvas *c = new TCanvas("c", "c", 1200, 1000);
-        // c->Divide(3, 1);
-        // c->cd(1);
-        // TH2D *h2_surv = fOscillogram->Projection(1, 0);
-        // h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
-        // h2_surv->Draw("colz");
-        // gPad->Update();
-        // c->cd(2);
-        // TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
-        // h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
-        // h2_osc->Draw("colz");
-        // gPad->Update();
-        // printf("h2_osc integral = %f\n", h2_osc->Integral());
-        // c->cd(3);
-        // TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
-        // h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
-        // h2_recosc->Draw("colz");
-        // gPad->Update();
-        // printf("h2_recosc integral = %f\n", h2_recosc->Integral());
-        // // printf("rate = %f\n", rate);
+        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+        TCanvas *c = new TCanvas("c", "c", 1200, 1000);
+        c->Divide(3, 1);
+        c->cd(1);
+        TH2D *h2_surv = fOscillogram->Projection(1, 0);
+        h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
+        h2_surv->Draw("colz");
+        gPad->Update();
+        c->cd(2);
+        TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
+        h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
+        h2_osc->Draw("colz");
+        gPad->Update();
+        printf("h2_osc integral = %f\n", h2_osc->Integral());
+        c->cd(3);
+        TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
+        h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
+        h2_recosc->Draw("colz");
+        gPad->Update();
+        printf("h2_recosc integral = %f\n", h2_recosc->Integral());
+        // printf("rate = %f\n", rate);
 
-        // timer->TurnOn();
-        // timer->Reset();
-        // getchar();
-        // timer->TurnOff();
+        timer->TurnOn();
+        timer->Reset();
+        getchar();
+        timer->TurnOff();
 
         total_rate += scaling * channel.fNormalization;
 
@@ -265,7 +265,7 @@ namespace mst
       }
       else
       {
-        hn = MSPDFBuilderTHn::RebinHistogram(im->second->GetTHn(), fTmpPDF);
+        hn = RebinHistogram(im->second->GetTHn());
       }
       total_rate = scaling;
       fTmpPDF->Add(hn, scaling);
@@ -285,7 +285,6 @@ namespace mst
     //   TAxis *axis = fTmpPDF->GetAxis(i);
     //   std::cout << "Axis " << i << ": " << axis->GetNbins() << " bins, range [" << axis->GetXmin() << ", " << axis->GetXmax() << "]" << std::endl;
     // }
-
     return total_rate;
   }
 
@@ -303,12 +302,12 @@ namespace mst
     // check if the temporary PDF exist already
     if (!fTmpPDF)
     {
-      fTmpPDF = fHandler.CreateHn();
+      fTmpPDF = fInternalHandler.CreateHn();
       fTmpPDF->SetName("privatePDF");
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
       size_t iaxis = 0;
-      for (const auto &axis : fHandler.GetAxes())
+      for (const auto &axis : fInternalHandler.GetAxes())
       {
         if (axis.fSetRange)
         {
@@ -368,30 +367,32 @@ namespace mst
 
       fTmpPDF->Add(hn, scaling * exposure_conversion);
 
-      /*
-       *       TTimer* timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-       *       TCanvas* c = new TCanvas("c", "c", 1200, 1000);
-       *       c->Divide(3,1);
-       *       c->cd(1);
-       *       TH2D* h2_surv = fOscillogram->Projection(1,0);
-       *       h2_surv->SetEntries( h2_surv->GetNbinsX() * h2_surv->GetNbinsY() );
-       *       h2_surv->Draw("colz"); gPad->Update();
-       *       c->cd(2);
-       *       TH2D* h2_osc = (TH2D*) hn_osc->Projection(1,0);
-       *       h2_osc->SetEntries( h2_osc->GetNbinsX() * h2_osc->GetNbinsY() );
-       *       h2_osc->Draw("colz"); gPad->Update();
-       *       printf("h2_osc integral = %f\n", h2_osc->Integral());
-       *       c->cd(3);
-       *       TH2D* h2_recosc = (TH2D*) hn->Projection(1,0,"A");
-       *       h2_recosc->SetEntries( h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY() );
-       *       h2_recosc->Draw("colz"); gPad->Update();
-       *       printf("h2_recosc integral = %f\n", h2_recosc->Integral());
-       *       printf("rate = %f\n", rate );
-       *
-       *       timer->TurnOn(); timer->Reset();
-       *       getchar();
-       *       timer->TurnOff();
-       */
+      TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+      TCanvas *c = new TCanvas("c", "c", 1200, 1000);
+      c->Divide(3, 1);
+      c->cd(1);
+      TH2D *h2_surv = fOscillogram->Projection(1, 0);
+      h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
+      h2_surv->Draw("colz");
+      gPad->Update();
+      c->cd(2);
+      TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
+      h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
+      h2_osc->Draw("colz");
+      gPad->Update();
+      printf("h2_osc integral = %f\n", h2_osc->Integral());
+      c->cd(3);
+      TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
+      h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
+      h2_recosc->Draw("colz");
+      gPad->Update();
+      printf("h2_recosc integral = %f\n", h2_recosc->Integral());
+      // printf("rate = %f\n", rate);
+
+      timer->TurnOn();
+      timer->Reset();
+      getchar();
+      timer->TurnOff();
 
       total_rate = scaling * ch.fNormalization;
 
@@ -710,7 +711,6 @@ namespace mst
         {
           surv = 1.0 - surv;
         }
-
         product->SetBinContent(i, nu_flux * surv);
         // if (i%100 == 0)
         // printf("E = %g, cos(nad) = %g, cos(nad) exposure = %g, nu_flux = %g, surv = %g, product = %g\n",
@@ -754,7 +754,7 @@ namespace mst
 
   THn *MSPDFBuilderTHn::ApplyResponseMatrix(const THn *target, const THn *responseMatrix)
   {
-    target = MSPDFBuilderTHn::RebinHistogram(target, responseMatrix);
+    target = MSPDFBuilderTHn::RebinHistogram(target);
     // TODO: make these defined in configuration file
     const int iaxis_transform_target = 0;
     const int iaxis_transform_response = 1;
@@ -820,7 +820,7 @@ namespace mst
   THn *MSPDFBuilderTHn::ApplyResponseMatrixAndCrossSection(const THn *target,
                                                            const THn *responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t &channel)
   {
-    target = MSPDFBuilderTHn::RebinHistogram(target, responseMatrix);
+    target = MSPDFBuilderTHn::RebinHistogram(target);
 
     // TODO: make these defined in configuration file
     const int iaxis_transform_target = 0;
@@ -934,48 +934,97 @@ namespace mst
   }
 
   // Example function to rebin a fine histogram into a coarse one
-  THn *MSPDFBuilderTHn::RebinHistogram(const THn *fineHistogram, const THn *coarseTemplate)
+  THn *MSPDFBuilderTHn::RebinHistogram(const THn *fineHistogram)
   {
-    // Create a new histogram with coarse binning based on the template
-    THn *coarseHistogram = dynamic_cast<THn *>(coarseTemplate->Clone());
+    // std::cout << "Binning of fineHistogram" << fineHistogram->GetName() << ":" << std::endl;
+    // for (int dim = 0; dim < fineHistogram->GetNdimensions(); ++dim)
+    // {
+    //   TAxis *axis = fineHistogram->GetAxis(dim);
+    //   std::cout << "Dimension " << dim << ": " << axis->GetNbins()
+    //             << " bins, range [" << axis->GetXmin() << ", " << axis->GetXmax() << "]" << std::endl;
+    // }
+
+    // Create a new histogram with coarse binning based on the axes from fHandler
+    const int ndim_fine = fineHistogram->GetNdimensions();
+    std::vector<int> nbins(ndim_fine);
+    std::vector<double> xmin(ndim_fine);
+    std::vector<double> xmax(ndim_fine);
+
+    for (int dim = 0; dim < ndim_fine; ++dim)
+    {
+      const auto &axis = fHandler.GetAxes().at(dim);
+      nbins[dim] = axis.fNbins;
+      xmin[dim] = axis.fMin;
+      xmax[dim] = axis.fMax;
+      std::cout << "Dimension " << dim << ": " << nbins[dim]
+                << " bins, range [" << xmin[dim] << ", " << xmax[dim] << "]" << std::endl;
+    }
+
+    THn *coarseHistogram = new THnD(fineHistogram->GetName(), fineHistogram->GetName(), ndim_fine, &nbins[0], &xmin[0], &xmax[0]);
     coarseHistogram->Reset(); // Clear existing bin contents
 
-    const int ndim = fineHistogram->GetNdimensions();
-
     // Create arrays to hold bin indices
-    int fineCoords[ndim];
-    int coarseCoords[ndim];
+    std::vector<int> fineCoords(ndim_fine, 0);
+    std::vector<int> coarseCoords(ndim_fine, 1); // Initialize to 1-based indexing
 
-    // Iterator over the fine histogram
+    // Create an iterator over the fine histogram
     auto *it = fineHistogram->CreateIter(true);
-
-    while (it->Next(fineCoords) >= 0)
+    if (!it)
     {
-      // Map each dimension's fine bin to the corresponding coarse bin
-      for (int dim = 0; dim < ndim; ++dim)
+      std::cerr << "Error: Failed to create iterator for fineHistogram." << std::endl;
+      return nullptr;
+    }
+
+    while (it->Next(&fineCoords[0]) >= 0) // Pass array pointer explicitly
+    {
+      for (int dim = 0; dim < ndim_fine; ++dim)
       {
-        int fineBins = fineHistogram->GetAxis(dim)->GetNbins();
-        int coarseBins = coarseHistogram->GetAxis(dim)->GetNbins();
-        // Calculate the factor: assumes fineBins is an integer multiple of coarseBins
-        int factor = fineBins / coarseBins;
-        // Map fine bin to coarse bin (adjusting for ROOT's 1-based indexing)
-        coarseCoords[dim] = (fineCoords[dim] - 1) / factor + 1;
+        TAxis *fineAxis = fineHistogram->GetAxis(dim);
+        TAxis *coarseAxis = coarseHistogram->GetAxis(dim);
+
+        if (!fineAxis || !coarseAxis)
+        {
+          std::cerr << "Error: Null axis encountered in dimension " << dim << std::endl;
+          continue;
+        }
+
+        double fineBinCenter = fineAxis->GetBinCenter(fineCoords[dim]);
+
+        // Ensure bin center is within range
+        double minX = coarseAxis->GetXmin();
+        double maxX = coarseAxis->GetXmax();
+
+        if (fineBinCenter < minX)
+          fineBinCenter = minX;
+        if (fineBinCenter > maxX)
+          fineBinCenter = maxX;
+
+        coarseCoords[dim] = coarseAxis->FindBin(fineBinCenter);
+
+        // Validate computed bin index
+        if (coarseCoords[dim] < 1 || coarseCoords[dim] > coarseAxis->GetNbins())
+        {
+          std::cerr << "Error: Computed coarse bin index out of range: " << coarseCoords[dim]
+                    << " for dimension " << dim << std::endl;
+          continue;
+        }
       }
 
-      // Get the content and error from the fine bin
-      double content = fineHistogram->GetBinContent(fineCoords);
-      double error = fineHistogram->GetBinError(fineCoords);
+      // Get content and error from fine histogram bin
+      double content = fineHistogram->GetBinContent(&fineCoords[0]);
+      double error = fineHistogram->GetBinError(&fineCoords[0]);
 
-      // Retrieve the current content in the corresponding coarse bin
-      double oldContent = coarseHistogram->GetBinContent(coarseCoords);
-      double oldError = coarseHistogram->GetBinError(coarseCoords);
+      // Retrieve content from the corresponding coarse bin
+      double oldContent = coarseHistogram->GetBinContent(&coarseCoords[0]);
+      double oldError = coarseHistogram->GetBinError(&coarseCoords[0]);
 
-      // Accumulate the contents and combine errors in quadrature
-      coarseHistogram->SetBinContent(coarseCoords, oldContent + content);
-      coarseHistogram->SetBinError(coarseCoords, std::sqrt(oldError * oldError + error * error));
+      // Accumulate content and combine errors
+      coarseHistogram->SetBinContent(&coarseCoords[0], oldContent + content);
+      coarseHistogram->SetBinError(&coarseCoords[0], std::sqrt(oldError * oldError + error * error));
     }
 
     delete it;
     return coarseHistogram;
   }
+
 } // namespace mst

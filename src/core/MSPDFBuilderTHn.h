@@ -177,6 +177,7 @@ namespace mst
 
     //! Get the hist handler
     inline MSTHnHandler &GetHistHandler() { return fHandler; }
+    inline MSTHnHandler &GetInternalHistHandler() { return fInternalHandler; }
 
   protected:
     //! Map of histograms
@@ -227,7 +228,7 @@ namespace mst
     THn *ApplyOscillationProb(const THn *target, const int pdg = 12);
     THn *ApplyResponseMatrix(const THn *target, const THn *responseMatrix);
     THn *ApplyResponseMatrixAndCrossSection(const THn *target, const THn *responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t &channel);
-    THn *RebinHistogram(const THn *fineHistogram, const THn *coarseTemplate);
+    THn *RebinHistogram(const THn *fineHistogram);
   };
 
 } // namespace mst

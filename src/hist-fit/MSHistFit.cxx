@@ -324,7 +324,6 @@ namespace mst
   inline MSMinimizer *InitializeAnalysis(const rapidjson::Document &json,
                                          const std::string &datafileName)
   {
-
     // initialize fitter
     MSMinimizer *fitter = new MSMinimizer();
 
@@ -352,7 +351,6 @@ namespace mst
         oscillationParMap.insert(MSParameterPair(p->GetName(), p));
       }
     }
-
     // loop over data sets and for each create the model and PDFBuilder
     for (const auto &dataSet : jfittingModel["dataSets"].GetObject())
     {
@@ -372,6 +370,8 @@ namespace mst
       // Initialize hist handler //////////////////////////////////////////////
       MSTHnHandler &handler = pdfBuilder->GetHistHandler();
 
+      MSTHnHandler &internalHandler = pdfBuilder->GetInternalHistHandler();
+
       // read list of projected axis from the json file
       // (only if the block projectOnAxis is defined)
       if (dataSet.value.HasMember("projectOnAxis"))
@@ -379,7 +379,7 @@ namespace mst
         std::vector<int> v;
         for (int i = 0; i < dataSet.value["projectOnAxis"].Size(); i++)
           v.push_back((dataSet.value["projectOnAxis"].GetArray())[i].GetInt());
-        handler.ProjectToAxis(v);
+        internalHandler.ProjectToAxis(v);
       }
 
       // set the range and binning of the axis
@@ -392,22 +392,22 @@ namespace mst
           int axisID = 0;
           conversion << axis.name.GetString();
           conversion >> axisID;
-          handler.SetRange(axisID, axis.value["range"][0].GetDouble(),
-                           axis.value["range"][1].GetDouble());
-          handler.Rebin(axisID, axis.value["rebin"].GetInt());
+          internalHandler.SetRange(axisID, axis.value["range"][0].GetDouble(),
+                                   axis.value["range"][1].GetDouble());
+          internalHandler.Rebin(axisID, axis.value["rebin"].GetInt());
           if (axis.value.HasMember("label"))
           {
-            handler.SetLabel(axisID, axis.value["label"].GetString());
+            internalHandler.SetLabel(axisID, axis.value["label"].GetString());
           }
           if (axis.value.HasMember("limits"))
           {
-            handler.SetLimits(axisID,
-                              axis.value["limits"][0].GetDouble(),
-                              axis.value["limits"][1].GetDouble());
+            internalHandler.SetLimits(axisID,
+                                      axis.value["limits"][0].GetDouble(),
+                                      axis.value["limits"][1].GetDouble());
           }
           if (axis.value.HasMember("nbins"))
           {
-            handler.SetNbins(axisID, axis.value["nbins"].GetInt());
+            internalHandler.SetNbins(axisID, axis.value["nbins"].GetInt());
           }
         }
       }
@@ -415,7 +415,7 @@ namespace mst
       // Renormilize the histograms, in a specic range or over the full axis
       // (ecluding over- and under-flow bins)
       if (dataSet.value.HasMember("normalizePDFInUserRange"))
-        handler.RespectAxisUserRange(dataSet.value["normalizePDFInUserRange"].GetBool());
+        internalHandler.RespectAxisUserRange(dataSet.value["normalizePDFInUserRange"].GetBool());
 
       // end hist handler ////////////////////////////////////////////////////
 
@@ -440,7 +440,6 @@ namespace mst
                                dr.name.GetString()));
         }
       }
-
       // Load the PDF with the nadir exposure if present
       if (dataSet.value.HasMember("nadirExposurePDF"))
       {
@@ -453,21 +452,21 @@ namespace mst
         for (const auto &i : jnadir)
         {
           pathToFile += i.value["pdf"][0].GetString();
-          THn *hnNadir = handler.LoadHist(pathToFile.Data(),
-                                          i.value["pdf"][1].GetString(),
-                                          Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
+          THn *hnNadir = internalHandler.LoadHist(pathToFile.Data(),
+                                                  i.value["pdf"][1].GetString(),
+                                                  Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
           pdfBuilder->RegisterNadirPDF(hnNadir->Projection(0));
           delete hnNadir;
         }
       }
 
       // check if handler has a nadir axis
-      const auto &axes_list = handler.GetProjectID();
+      const auto &axes_list = internalHandler.GetProjectID();
       bool has_nadir = false;
       THn *hnNadir = nullptr;
       for (const auto &axis_id : axes_list)
       {
-        TString axis_name = handler.GetAxes().at(axis_id).fLabel;
+        TString axis_name = internalHandler.GetAxes().at(axis_id).fLabel;
         if (axis_name.Contains("nadir", TString::ECaseCompare::kIgnoreCase))
         {
           has_nadir = true;
@@ -537,17 +536,17 @@ namespace mst
           }
           else
           {
-            hn = handler.LoadHist(pathToFile.Data(),
-                                  component.value["pdf"][1].GetString(),
-                                  component.name.GetString(),
-                                  true);
+            hn = internalHandler.LoadHist(pathToFile.Data(),
+                                          component.value["pdf"][1].GetString(),
+                                          component.name.GetString(),
+                                          true);
           }
 
           if (has_nadir)
           {
             printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            THn *hn_tmp = handler.FactorizeTHn(hn, hnNadir);
-            handler.NormalizeHn(hn_tmp);
+            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadir);
+            internalHandler.NormalizeHn(hn_tmp);
             delete hn;
             hn = hn_tmp;
           }
@@ -566,15 +565,14 @@ namespace mst
           {
             pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
           }
-
-          hn = handler.LoadHist(pathToFile.Data(),
-                                component.value["pdf"][1].GetString(),
-                                component.name.GetString(), true);
+          hn = internalHandler.LoadHist(pathToFile.Data(),
+                                        component.value["pdf"][1].GetString(),
+                                        component.name.GetString(), true);
           if (has_nadir)
           {
             printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            THn *hn_tmp = handler.FactorizeTHn(hn, hnNadir);
-            handler.NormalizeHn(hn_tmp);
+            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadir);
+            internalHandler.NormalizeHn(hn_tmp);
             delete hn;
             hn = hn_tmp;
           }
@@ -740,7 +738,6 @@ namespace mst
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
                                    ["components"][parName.c_str()]["injVal"]
                                        .GetDouble();
-
         // printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n",
         // parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         double count_rate = 0.0;
@@ -787,10 +784,12 @@ namespace mst
     for (const auto &step : json["MinimizerSteps"].GetObject())
     {
       fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
+      std::cout << "info: minimization step " << step.name.GetString() << " started\n";
       fitter->Minimize(step.value["method"].GetString(),
                        step.value["resetMinuit"].GetBool(),
                        step.value["maxCall"].GetDouble(),
                        step.value["tollerance"].GetDouble());
+      std::cout << "info: minimization step " << step.name.GetString() << " completed\n";
     }
 
     if (fitter->GetMinuitStatus())
