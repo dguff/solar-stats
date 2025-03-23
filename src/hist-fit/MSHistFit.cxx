@@ -264,7 +264,7 @@ namespace mst
       isMemberCorrect(step.value, "method", "String");     // json/MinimizerSteps/*
       isMemberCorrect(step.value, "resetMinuit", "Bool");  // json/MinimizerSteps/*/resetMinuit
       isMemberCorrect(step.value, "maxCall", "Number");    // json/MinimizerSteps/*/maxCall
-      isMemberCorrect(step.value, "tollerance", "Number"); // json/MinimizerSteps/*/tollerance
+      isMemberCorrect(step.value, "tolerance", "Number"); // json/MinimizerSteps/*/tolerance
       isMemberCorrect(step.value, "verbosity", "Int");     // json/MinimizerSteps/*/verbosity
     } //
     if (json.HasMember("MC"))
@@ -788,7 +788,7 @@ namespace mst
       fitter->Minimize(step.value["method"].GetString(),
                        step.value["resetMinuit"].GetBool(),
                        step.value["maxCall"].GetDouble(),
-                       step.value["tollerance"].GetDouble());
+                       step.value["tolerance"].GetDouble());
       std::cout << "info: minimization step " << step.name.GetString() << " completed\n";
     }
 
