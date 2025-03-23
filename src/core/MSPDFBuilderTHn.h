@@ -227,6 +227,7 @@ namespace mst
     THn *ComputeOscillationProb(NeutrinoPropagator *propagator);
     THn *ApplyOscillationProb(const THn *target, const int pdg = 12);
     THn *ApplyResponseMatrix(const THn *target, const THn *responseMatrix);
+    THn *ApplyCrossSection(const THn* target, const MSTHnPDFNeutrino::NuIntChannel_t &channel);
     THn *ApplyResponseMatrixAndCrossSection(const THn *target, const THn *responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t &channel);
     THn *RebinHistogram(const THn *fineHistogram);
   };
