@@ -256,4 +256,41 @@ void MSTHnHandler::NormalizeHn(THn* hn, const double norm) const {
   return;
 }
 
+THn* MSTHnHandler::RebinHist(const THn* hn, const std::vector<int>& iaxis_target, const std::vector<TAxis*>& axes_reference)
+{
+  int rebin_group[hn->GetNdimensions()];
+  double group_size = 1;
+  for (size_t idim = 0; idim < hn->GetNdimensions(); idim++) {
+    rebin_group[idim] = 1;
+    for (size_t i = 0; i < iaxis_target.size(); i++) {
+      if (iaxis_target[i] == idim) {
+        if ( hn->GetAxis(idim)->GetNbins() % axes_reference[i]->GetNbins() != 0 ) {
+          std::cerr << "MSTHnHandler::RebinHist() Error: Incompatible binning for dimension " << idim << std::endl;
+          fprintf(stderr, "target axis [%ld] : %i bins in range [%f, %f]\n", 
+              idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+          fprintf(stderr, "reference axis [%ld] : %i bins in range [%f, %f]\n", 
+              idim, axes_reference[i]->GetNbins(), axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
+          exit(EXIT_FAILURE);
+        }
+        if ( hn->GetAxis(idim)->GetXmin() != axes_reference[i]->GetXmin() || 
+             hn->GetAxis(idim)->GetXmax() != axes_reference[i]->GetXmax() ) {
+          std::cerr << "MSTHnHandler::RebinHist() Error: Incompatible axis limits for dimension " << idim << std::endl;
+          fprintf(stderr, "target axis [%ld] : range [%f, %f]\n", idim, hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+          fprintf(stderr, "reference axis [%ld] : range [%f, %f]\n", idim, axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
+          exit(EXIT_FAILURE);
+        }
+        rebin_group[idim] = 
+          hn->GetAxis(idim)->GetNbins() / axes_reference[i]->GetNbins();
+        group_size *= rebin_group[idim];
+        break;
+      }
+    }
+  }
+
+  THn* product = hn->Rebin(rebin_group);
+  product->Scale(1.0/group_size);
+
+  return product;
+}
+
 } // namespace mst
