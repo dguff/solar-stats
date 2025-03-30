@@ -33,7 +33,8 @@ namespace mst
          if (mspar->IsInput() == false)
             continue;
          const double par_cts = GetMinuitParameter(par, parName);
-         fPDFBuilder->AddHistToPDF(parName, par_cts, propagator);
+         const double count_rate = fPDFBuilder->AddHistToPDF(parName, par_cts, propagator);
+         //printf("parName = %s, par_cts = %f, count_rate = %f\n", parName.c_str(), par_cts, count_rate);
       }
       // for (const auto& par_itr : *fParameters) {
       // if (par_itr.second->IsInput()) {
