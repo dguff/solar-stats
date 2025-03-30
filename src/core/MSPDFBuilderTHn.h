@@ -87,8 +87,8 @@ namespace mst
     inline TH1D *GetNadirPDF() { return fNadirPDF; }
     //! get nadir pdf
     inline const TH1D *GetNadirPDF() const { return fNadirPDF; }
-    //! Build the nadir pdf as speficied by the handler
-    THn *BuildNadirPDF() const;
+    //! Build the nadir pdf as speficied by the handler (ihandler = 0) or the internal handler (ihandler = 1)
+    THn *BuildNadirPDF(const int ihandler = 0) const;
 
     //! register response matrix
     void RegisterResponseMatrix(THn *);
@@ -200,8 +200,8 @@ namespace mst
     MSTHnHandler fHandler;
     //! Hist Internal handler
     MSTHnHandler fInternalHandler;
-    //! Conversion factor
-    const double exposure_conversion = 4.7478558e-07;
+    //! Conversion factor (NA * yr * N_mol / tonne)
+    const double exposure_conversion = 4.7526084e-07;
 
     enum class MCRealizationProcedure
     {
@@ -227,7 +227,7 @@ namespace mst
     THn *ComputeOscillationProb(NeutrinoPropagator *propagator);
     THn *ApplyOscillationProb(const THn *target, const int pdg = 12);
     THn *ApplyResponseMatrix(const THn *target, const THn *responseMatrix);
-    THn *ApplyCrossSection(const THn* target, const MSTHnPDFNeutrino::NuIntChannel_t &channel);
+    THn *ApplyCrossSection(const THn* target, MSTHnPDFNeutrino::NuIntChannel_t &channel);
     THn *ApplyResponseMatrixAndCrossSection(const THn *target, const THn *responseMatrix, MSTHnPDFNeutrino::NuIntChannel_t &channel);
     THn *RebinHistogram(const THn *fineHistogram);
   };

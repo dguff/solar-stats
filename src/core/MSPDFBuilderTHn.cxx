@@ -48,8 +48,7 @@ namespace mst
     {
       for (auto &it : *fPDFMap)
       {
-        if (it.second)
-          delete it.second;
+        if (it.second) delete it.second;
       }
       fPDFMap->clear();
       delete fPDFMap;
@@ -57,22 +56,17 @@ namespace mst
 
     if (fRespMatrixMap)
     {
-      for (auto &it : *fRespMatrixMap)
-      {
-        if (it.second)
-          delete it.second;
+      for (auto &it : *fRespMatrixMap) {
+        if (it.second) delete it.second;
       }
       fRespMatrixMap->clear();
     }
 
     fMarleyGen.clear();
 
-    if (fOscillogram)
-      delete fOscillogram;
-    if (fNadirPDF)
-      delete fNadirPDF;
-    if (fNadirFun)
-      delete fNadirFun;
+    if (fOscillogram) delete fOscillogram;
+    if (fNadirPDF) delete fNadirPDF;
+    if (fNadirFun) delete fNadirFun;
 
     delete fTmpPDF;
     delete fRnd;
@@ -149,10 +143,8 @@ namespace mst
       fTmpPDF->SetTitle("privatePDF");
       ResetPDF();
       size_t iaxis = 0;
-      for (const auto &axis : fInternalHandler.GetAxes())
-      {
-        if (axis.fSetRange)
-        {
+      for (const auto &axis : fHandler.GetAxes()) {
+        if (axis.fSetRange) {
           fTmpPDF->GetAxis(iaxis)->SetRangeUser(axis.fRangeMin, axis.fRangeMax);
         }
         iaxis++;
@@ -201,50 +193,62 @@ namespace mst
         THnD *respMatrix = dynamic_cast<THnD *>(im_resp->second);
         //hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, channel);
         hn = ApplyResponseMatrix( hn_osc_xs, respMatrix );
+        MSTHnHandler::NormalizeHn(hn);
         response_matrix_applied = true;
         channel.fNormalization *= exposure_conversion;
 
-        fTmpPDF->Add(hn, scaling * exposure_conversion);
-
-        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-        TCanvas *c = new TCanvas("c", "c", 1600, 900);
-
-        TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
-        if (fOscillogram->GetNdimensions() == 1) 
-        {
-          hsurv = fOscillogram->Projection(0);
-          hosc = hn_osc->Projection(0);
-          hoscxs = hn_osc_xs->Projection(0);
-          hrecosc = hn->Projection(0);
-        }
-        else 
-        {
-          hsurv = fTmpPDF->Projection(1,0); 
-          hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
-          hosc = hn_osc->Projection(1,0); 
-          hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
-          hoscxs = hn_osc_xs->Projection(1,0);
-          hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
-          hrecosc = hn->Projection(1,0,"A"); 
-          hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
-        }
-        c->Divide(4, 1);
-        c->cd(1); hsurv->Draw("colz");
-        gPad->Update();
-        c->cd(2); hosc->Draw("colz");
-        gPad->Update();
-        printf("hosc integral = %f\n", hosc->Integral());
-        c->cd(3); hoscxs->Draw("colz"); 
-        gPad->Update();
-        c->cd(4); hrecosc->Draw("colz");
-        gPad->Update();
-        printf("hrecosc integral = %f\n", hrecosc->Integral());
-        // printf("rate = %f\n", rate);
-
-        timer->TurnOn();
-        timer->Reset();
-        getchar();
-        timer->TurnOff();
+        fTmpPDF->Add(hn, scaling * channel.fNormalization);
+/*
+ *
+ *        printf("[0] scaling: %f, normalization: %g\n", 
+ *          scaling, channel.fNormalization);
+ *        const double exposure = 1e4;
+ *        printf("hn integral = %f\n", MSTHnHandler::Integral(hn) * scaling * channel.fNormalization * exposure);
+ *
+ *
+ *        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+ *        TCanvas *c = new TCanvas("c", "c", 1600, 900);
+ *
+ *        TH1* hog = nullptr; TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
+ *        if (fOscillogram->GetNdimensions() == 1) 
+ *        {
+ *          hsurv = fOscillogram->Projection(0);
+ *          hosc = hn_osc->Projection(0);
+ *          hoscxs = hn_osc_xs->Projection(0);
+ *          hrecosc = hn->Projection(0);
+ *        }
+ *        else 
+ *        {
+ *          hsurv = fOscillogram->Projection(1,0); TString nt = pdf->GetName().data(); hsurv->SetNameTitle(nt,nt);
+ *          hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
+ *          hog = pdf->GetTHn()->Projection(1,0); nt = pdf->GetName().data(); hog->SetNameTitle(nt,nt);
+ *          hog->SetEntries(hog->GetNbinsX() * hog->GetNbinsY());
+ *          hosc = hn_osc->Projection(1,0); nt = Form("%s_osc", pdf->GetName().data()); hosc->SetNameTitle(nt,nt);
+ *          hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
+ *          hoscxs = hn_osc_xs->Projection(1,0); nt = Form("%s_oscxs", pdf->GetName().data()); hoscxs->SetNameTitle(nt,nt);
+ *          hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
+ *          hrecosc = hn->Projection(1,0,"A"); nt = Form("%s_recosc", pdf->GetName().data()); hrecosc->SetNameTitle(nt,nt);
+ *          hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
+ *        }
+ *        c->Divide(4, 1);
+ *        c->cd(1); hsurv->Draw("colz");
+ *        gPad->Update();
+ *        c->cd(2); hosc->Draw("colz");
+ *        gPad->Update();
+ *        printf("hosc integral = %f\n", hosc->Integral());
+ *        c->cd(3); hoscxs->Draw("colz"); 
+ *        printf("hoscxs integral = %f\n", hoscxs->Integral());
+ *        gPad->Update();
+ *        c->cd(4); hrecosc->Draw("colz");
+ *        gPad->Update();
+ *        printf("hrecosc integral = %f\n", hrecosc->Integral());
+ *        // printf("rate = %f\n", rate);
+ *
+ *        timer->TurnOn();
+ *        timer->Reset();
+ *        getchar();
+ *        timer->TurnOff();
+ */
 
         total_rate += scaling * channel.fNormalization;
 
@@ -290,6 +294,7 @@ namespace mst
     //   TAxis *axis = fTmpPDF->GetAxis(i);
     //   std::cout << "Axis " << i << ": " << axis->GetNbins() << " bins, range [" << axis->GetXmin() << ", " << axis->GetXmax() << "]" << std::endl;
     // }
+    //printf("[0] total_rate = %f\n", total_rate);
     return total_rate;
   }
 
@@ -368,44 +373,48 @@ namespace mst
 
       // Call ApplyResponseMatrixAndCrossSection with the rebinned histogram
       hn = ApplyResponseMatrix(hn_osc_xs, respMatrix);
-
+      MSTHnHandler::NormalizeHn(hn);
       response_matrix_applied = true;
       ch.fNormalization *= exposure_conversion;
 
-      fTmpPDF->Add(hn, scaling * exposure_conversion);
+      fTmpPDF->Add(hn, scaling * ch.fNormalization);
 
-      TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-      TCanvas *c = new TCanvas("c", "c", 1600, 900);
-      TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
-      if (fOscillogram->GetNdimensions() == 1) 
-      {
-        hsurv = fOscillogram->Projection(0);
-        hosc = hn_osc->Projection(0);
-        hoscxs = hn_osc_xs->Projection(0);
-        hrecosc = hn->Projection(0);
-      }
-      else 
-      {
-        hsurv = fTmpPDF->Projection(1,0); 
-        hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
-        hosc = hn_osc->Projection(1,0); 
-        hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
-        hoscxs = hn_osc_xs->Projection(1,0);
-        hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
-        hrecosc = hn->Projection(1,0,"A"); 
-        hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
-      }
-      c->Divide(4, 1);
-      c->cd(1); hsurv->Draw("colz");
-      gPad->Update();
-      c->cd(2); hosc->Draw("colz");
-      gPad->Update();
-      printf("hosc integral = %f\n", hosc->Integral());
-      c->cd(3); hoscxs->Draw("colz");
-      gPad->Update();
-      c->cd(4); hrecosc->Draw("colz");
-      gPad->Update();
-      printf("hrecosc integral = %f\n", hrecosc->Integral());
+      //printf("[1] scaling: %f, normalization: %g\n", 
+          //scaling, ch.fNormalization);
+      //const double exposure = 1e4;
+      //printf("hn integral = %f\n", MSTHnHandler::Integral(hn) * scaling * ch.fNormalization *exposure);
+      //TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+      //TCanvas *c = new TCanvas("c", "c", 1600, 900);
+      //TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
+      //if (fOscillogram->GetNdimensions() == 1) 
+      //{
+        //hsurv = fOscillogram->Projection(0);
+        //hosc = hn_osc->Projection(0);
+        //hoscxs = hn_osc_xs->Projection(0);
+        //hrecosc = hn->Projection(0);
+      //}
+      //else 
+      //{
+        //hsurv = fTmpPDF->Projection(1,0); 
+        //hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
+        //hosc = hn_osc->Projection(1,0); 
+        //hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
+        //hoscxs = hn_osc_xs->Projection(1,0);
+        //hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
+        //hrecosc = hn->Projection(1,0,"A"); 
+        //hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
+      //}
+      //c->Divide(4, 1);
+      //c->cd(1); hsurv->Draw("colz");
+      //gPad->Update();
+      //c->cd(2); hosc->Draw("colz");
+      //gPad->Update();
+      //printf("hosc integral = %f\n", hosc->Integral());
+      //c->cd(3); hoscxs->Draw("colz");
+      //gPad->Update();
+      //c->cd(4); hrecosc->Draw("colz");
+      //gPad->Update();
+      //printf("hrecosc integral = %f\n", hrecosc->Integral());
 
       //c->Divide(3, 1);
       //c->cd(1);
@@ -427,10 +436,10 @@ namespace mst
       //printf("h2_recosc integral = %f\n", h2_recosc->Integral());
       // printf("rate = %f\n", rate);
 
-      timer->TurnOn();
-      timer->Reset();
-      getchar();
-      timer->TurnOff();
+      //timer->TurnOn();
+      //timer->Reset();
+      //getchar();
+      //timer->TurnOff();
 
       total_rate = scaling * ch.fNormalization;
 
@@ -448,7 +457,7 @@ namespace mst
               pdfType, histName.data());
       exit(EXIT_FAILURE);
     }
-
+    //printf("[1] total_rate = %f\n", total_rate);
     return total_rate;
   }
 
@@ -518,7 +527,7 @@ namespace mst
     }
     else if (procedure == MCRealizationProcedure::kBinSampling)
     {
-      fHandler.NormalizeHn(fTmpPDF, ctsNum);
+      MSTHnHandler::NormalizeHn(fTmpPDF, ctsNum);
       auto *iter = realization->CreateIter(true);
       int coords[dim];
       Long64_t i = 0;
@@ -532,7 +541,8 @@ namespace mst
     }
     else if (procedure == MCRealizationProcedure::kAsimov)
     {
-      fHandler.NormalizeHn(fTmpPDF, ctsNum);
+      printf("tmp PDF integral = %f\n", MSTHnHandler::Integral(fTmpPDF));
+      MSTHnHandler::NormalizeHn(fTmpPDF, ctsNum);
       auto *iter = realization->CreateIter(true);
       int coords[dim];
       Long64_t i = 0;
@@ -557,6 +567,10 @@ namespace mst
 
     if (rndTmpCopy != nullptr)
       gRandom = rndTmpCopy;
+
+    printf("realization integral = %f\n", MSTHnHandler::Integral(realization));
+    getchar();
+
     return realization;
   }
 
@@ -672,7 +686,7 @@ namespace mst
     }
   }
 
-  THn *MSPDFBuilderTHn::BuildNadirPDF() const
+  THn *MSPDFBuilderTHn::BuildNadirPDF(const int ihandler) const
   {
     if (fNadirPDF == nullptr)
     {
@@ -680,9 +694,15 @@ namespace mst
       exit(EXIT_FAILURE);
     }
 
+    const MSTHnHandler* handler; 
+    if (ihandler == 0)
+      handler = &fHandler;
+    else
+      handler = &fInternalHandler;
+
     // get the nadir axis settings from the handler
     MSTHnHandler::axis nadir_axis_settings;
-    for (const auto &axis : fInternalHandler.GetAxes())
+    for (const auto &axis : handler->GetAxes())
     {
       TString label = axis.fLabel;
       if (label.Contains("nadir", TString::kIgnoreCase))
@@ -716,7 +736,7 @@ namespace mst
       nadir_pdf->SetBinContent(i, prob);
     }
 
-    fInternalHandler.NormalizeHn(nadir_pdf);
+    MSTHnHandler::NormalizeHn(nadir_pdf);
 
     return nadir_pdf;
   }
@@ -796,11 +816,27 @@ namespace mst
     const int iaxis_transform_target = 0;
     const int iaxis_response_true = 0;
     const int iaxis_response_reco = 1;
-    std::vector<int> target_axes = {iaxis_transform_target};
-    std::vector<TAxis*> ref_axes = {responseMatrix->GetAxis(iaxis_response_true)};
+    std::vector<int> target_axes; // = {iaxis_transform_target};
+    std::vector<TAxis*> ref_axes; // = {responseMatrix->GetAxis(iaxis_response_true)};
+  
+    // setup rebin for the target according to the response matrix and handler specs
+    for (int iaxis = 0; iaxis < target_og->GetNdimensions(); iaxis++) {
+      if (iaxis == iaxis_transform_target) {
+        target_axes.push_back(iaxis_transform_target);
+        ref_axes.push_back( 
+            static_cast<TAxis*>(responseMatrix->GetAxis(iaxis_response_true)->Clone()));
+      } else {
+        target_axes.push_back(iaxis);
+        ref_axes.push_back(
+            new TAxis(fHandler.GetAxes().at(iaxis).fNbins, fHandler.GetAxes().at(iaxis).fMin, fHandler.GetAxes().at(iaxis).fMax));
+      }
+    }
+
+
     const TAxis* response_axis = responseMatrix->GetAxis(iaxis_response_reco);
 
     THn* target = MSTHnHandler::RebinHist(target_og, target_axes, ref_axes);
+
     THnD *product = dynamic_cast<THnD*>(fHandler.CreateHn());
     product->SetName(Form("%s_%s", target->GetName(), responseMatrix->GetName()));
 
@@ -824,14 +860,11 @@ namespace mst
       double bc = target->GetBinContent(itarget);
       if (bc == 0) continue;
 
-      //printf("target_idx = %lld, [%i] bc = %f\n", itarget, target_idx[0], bc);
-
       for (size_t resp_bin = 1; resp_bin <= response_axis->GetNbins(); resp_bin++) {
         response_idx[iaxis_response_true] = target_idx[iaxis_transform_target];
         response_idx[iaxis_response_reco] = resp_bin;
 
         double weight = responseMatrix->GetBinContent( response_idx );
-        //printf("\trmatrix_idx = [%i, %i], weight = %f\n", response_idx[0], response_idx[1], weight);
 
         if (weight > 0) {
           std::vector<int> product_idx(target_idx, target_idx + ndim_target);
@@ -840,40 +873,44 @@ namespace mst
           product->AddBinContent( product_idx.data(), bc * weight);
         }
       }
-
-      //getchar();
     }
+
+    MSTHnHandler::NormalizeHn(product);
 
     // Apply axis settings as defined in the THn handler
     size_t idim = 0;
-    for (const auto &axis : fHandler.GetAxes())
-    {
-      if (axis.fSetRange)
-      {
+    for (const auto &axis : fHandler.GetAxes()) {
+      if (axis.fSetRange) {
         product->GetAxis(idim)->SetRangeUser(axis.fRangeMin, axis.fRangeMax);
       }
       idim++;
     }
 
+    for (auto axis : ref_axes) delete axis;
+
     return product;
   }
 
   THn *MSPDFBuilderTHn::ApplyCrossSection(const THn* target, 
-      const MSTHnPDFNeutrino::NuIntChannel_t& channel)
+      MSTHnPDFNeutrino::NuIntChannel_t& channel)
   {
     const std::vector<double>& crossSection = channel.fCrossSection;
     const MSTHnHandler::axis& energy_axis_settings = fInternalHandler.GetAxes().at(0);
     double xsec = 0.0; 
+    const double dE = (energy_axis_settings.fMax - energy_axis_settings.fMin) / energy_axis_settings.fNbins;
 
     THnD* product = static_cast<THnD*>(fInternalHandler.CreateHn());
     int ibin[1] = {0};
+    double &normalization = channel.fNormalization;
 
     if (target->GetNdimensions() == 1) {
       for (size_t i = 1; i <= energy_axis_settings.fNbins; i++)
       { // true energy bins loop
         xsec = crossSection.at(i - 1);
         ibin[0] = i;
-        product->SetBinContent(ibin, target->GetBinContent(ibin) * xsec);
+        const double xsec_ene = xsec * target->GetBinContent(ibin);
+        normalization += xsec_ene;
+        product->SetBinContent(ibin, xsec_ene);
       }
     } else if (target->GetNdimensions() == 2) {
       const MSTHnHandler::axis& nadir_axis_settings = fInternalHandler.GetAxes().at(1);
@@ -884,7 +921,9 @@ namespace mst
           xsec = crossSection.at(ienergy - 1);
           ibin[0] = ienergy;
           ibin[1] = inadir;
-          product->SetBinContent(ibin, target->GetBinContent(ibin) * xsec);
+          const double xsec_ene = xsec * target->GetBinContent(ibin);
+          normalization += xsec_ene;
+          product->SetBinContent(ibin, xsec_ene);
         }
       }
     }
@@ -1036,8 +1075,8 @@ namespace mst
       xmin[dim] = axis.fMin;
       xmax[dim] = axis.fMax;
       rebin_group[dim] = 1;
-      std::cout << "Dimension " << dim << ": " << nbins[dim]
-                << " bins, range [" << xmin[dim] << ", " << xmax[dim] << "]" << std::endl;
+      //std::cout << "Dimension " << dim << ": " << nbins[dim]
+                //<< " bins, range [" << xmin[dim] << ", " << xmax[dim] << "]" << std::endl;
       if (xmin[dim] == target->GetAxis(dim)->GetXmin() && xmax[dim] == target->GetAxis(dim)->GetXmax())
       {
         if ( target->GetAxis(dim)->GetNbins() % nbins[dim] == 0 )
