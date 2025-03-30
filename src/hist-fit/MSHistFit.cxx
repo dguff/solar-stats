@@ -15,6 +15,7 @@
 #include "TH2D.h"
 #include "THn.h"
 #include "TROOT.h"
+#include "TF1.h"
 #include "TFile.h"
 #include "TBranch.h"
 #include "TTree.h"
@@ -37,6 +38,32 @@
 
 namespace mst
 {
+
+  inline TH1* AdjustHist(const TH1* target, const MSTHnHandler::axis& handler_axis) {
+    TH1* outHist = nullptr;
+    if (dynamic_cast<const TH1D*>(target) == nullptr) {
+      fprintf(stderr, "AdjustHist error: target hist is not of type TH1D\n");
+      exit(EXIT_FAILURE);
+    }
+
+    const int nbins = handler_axis.fNbins;
+    const double min = handler_axis.fMin; 
+    const double max = handler_axis.fMax;
+
+    TH1D* h = new TH1D(Form("%s_adjusted", target->GetName()), target->GetTitle(), nbins, min, max);
+
+    TF1 fun("fun", [&](double* x, double* p) {return target->Interpolate(x[0]);}, min, max, 0);
+    fun.SetNpx(nbins*10);
+
+    for (int i = 1; i <= nbins; i++) {
+      double x0 = h->GetBinLowEdge(i);
+      double x1 = h->GetBinLowEdge(i+1);
+      double bc = fun.Integral(x0, x1);
+      h->SetBinContent(i, bc);
+    }
+    
+    return h;
+  }
 
   /*
    * Load and check integrity of the json config file
@@ -227,6 +254,19 @@ namespace mst
       {                                                                    // optional block:
         isMemberCorrect(dataSet.value, "normalizePDFInUserRange", "Bool"); // json/fittingModel/dataSets/*/normalizePDFInUserRange
       } //
+      if (dataSet.value.HasMember("oscillation_handler")) {
+        isMemberCorrect(dataSet.value, "oscillation_handler", "Object");
+        const auto& oscillationHandler = dataSet.value["oscillation_handler"];
+        isMemberCorrect(oscillationHandler, "axis", "Object");
+        for (const auto& axis : oscillationHandler["axis"].GetObject()) {
+          if (verbose)
+            cout << "info: checking axis "                            //
+              << axis.name.GetString() << endl;                    //
+          isMemberCorrect(axis.value, "label", "String");
+          isMemberCorrect(axis.value, "limits", "Array", "Number", 2);
+          isMemberCorrect(axis.value, "nbins", "Int");
+        }
+      }
     } //
     if (json.HasMember("pulls"))
     {                                           // optional block:
@@ -369,7 +409,6 @@ namespace mst
 
       // Initialize hist handler //////////////////////////////////////////////
       MSTHnHandler &handler = pdfBuilder->GetHistHandler();
-
       MSTHnHandler &internalHandler = pdfBuilder->GetInternalHistHandler();
 
       // read list of projected axis from the json file
@@ -379,7 +418,7 @@ namespace mst
         std::vector<int> v;
         for (int i = 0; i < dataSet.value["projectOnAxis"].Size(); i++)
           v.push_back((dataSet.value["projectOnAxis"].GetArray())[i].GetInt());
-        internalHandler.ProjectToAxis(v);
+        handler.ProjectToAxis(v);
       }
 
       // set the range and binning of the axis
@@ -392,22 +431,22 @@ namespace mst
           int axisID = 0;
           conversion << axis.name.GetString();
           conversion >> axisID;
-          internalHandler.SetRange(axisID, axis.value["range"][0].GetDouble(),
+          handler.SetRange(axisID, axis.value["range"][0].GetDouble(),
                                    axis.value["range"][1].GetDouble());
-          internalHandler.Rebin(axisID, axis.value["rebin"].GetInt());
+          handler.Rebin(axisID, axis.value["rebin"].GetInt());
           if (axis.value.HasMember("label"))
           {
-            internalHandler.SetLabel(axisID, axis.value["label"].GetString());
+            handler.SetLabel(axisID, axis.value["label"].GetString());
           }
           if (axis.value.HasMember("limits"))
           {
-            internalHandler.SetLimits(axisID,
-                                      axis.value["limits"][0].GetDouble(),
-                                      axis.value["limits"][1].GetDouble());
+            handler.SetLimits(axisID,
+                              axis.value["limits"][0].GetDouble(),
+                              axis.value["limits"][1].GetDouble());
           }
           if (axis.value.HasMember("nbins"))
           {
-            internalHandler.SetNbins(axisID, axis.value["nbins"].GetInt());
+            handler.SetNbins(axisID, axis.value["nbins"].GetInt());
           }
         }
       }
@@ -415,7 +454,18 @@ namespace mst
       // Renormilize the histograms, in a specic range or over the full axis
       // (ecluding over- and under-flow bins)
       if (dataSet.value.HasMember("normalizePDFInUserRange"))
-        internalHandler.RespectAxisUserRange(dataSet.value["normalizePDFInUserRange"].GetBool());
+        handler.RespectAxisUserRange(dataSet.value["normalizePDFInUserRange"].GetBool());
+
+      // Set the oscillation handler if needed
+      if (dataSet.value.HasMember("oscillation_handler")) {
+        for (const auto& axis : dataSet.value["oscillation_handler"]["axis"].GetObject()) {
+          int axisID = std::atoi(axis.name.GetString()); 
+          internalHandler.SetLimits(axisID, axis.value["limits"][0].GetDouble(),
+                                   axis.value["limits"][1].GetDouble());
+          internalHandler.SetNbins(axisID, axis.value["nbins"].GetInt());
+          internalHandler.SetLabel(axisID, axis.value["label"].GetString());
+        }
+      }
 
       // end hist handler ////////////////////////////////////////////////////
 
@@ -452,21 +502,22 @@ namespace mst
         for (const auto &i : jnadir)
         {
           pathToFile += i.value["pdf"][0].GetString();
-          THn *hnNadir = internalHandler.LoadHist(pathToFile.Data(),
-                                                  i.value["pdf"][1].GetString(),
-                                                  Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
+          THn *hnNadir = handler.LoadHist(pathToFile.Data(),
+                                          i.value["pdf"][1].GetString(),
+                                          Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
           pdfBuilder->RegisterNadirPDF(hnNadir->Projection(0));
           delete hnNadir;
         }
       }
 
       // check if handler has a nadir axis
-      const auto &axes_list = internalHandler.GetProjectID();
+      const auto &axes_list = handler.GetProjectID();
       bool has_nadir = false;
       THn *hnNadir = nullptr;
+      THn* hnNadirHP = nullptr; 
       for (const auto &axis_id : axes_list)
       {
-        TString axis_name = internalHandler.GetAxes().at(axis_id).fLabel;
+        TString axis_name = handler.GetAxes().at(axis_id).fLabel;
         if (axis_name.Contains("nadir", TString::ECaseCompare::kIgnoreCase))
         {
           has_nadir = true;
@@ -536,17 +587,17 @@ namespace mst
           }
           else
           {
-            hn = internalHandler.LoadHist(pathToFile.Data(),
-                                          component.value["pdf"][1].GetString(),
-                                          component.name.GetString(),
-                                          true);
+            hn = handler.LoadHist(pathToFile.Data(),
+                                  component.value["pdf"][1].GetString(),
+                                  component.name.GetString(),
+                                  true);
           }
 
           if (has_nadir)
           {
             printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadir);
-            internalHandler.NormalizeHn(hn_tmp);
+            THn *hn_tmp = handler.FactorizeTHn(hn, hnNadir);
+            MSTHnHandler::NormalizeHn(hn_tmp);
             delete hn;
             hn = hn_tmp;
           }
@@ -571,8 +622,13 @@ namespace mst
           if (has_nadir)
           {
             printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadir);
-            internalHandler.NormalizeHn(hn_tmp);
+            if (hnNadirHP == nullptr)
+            {
+              hnNadirHP = pdfBuilder->BuildNadirPDF(1);  
+            }
+
+            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadirHP);
+            MSTHnHandler::NormalizeHn(hn_tmp);
             delete hn;
             hn = hn_tmp;
           }
@@ -738,8 +794,8 @@ namespace mst
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
                                    ["components"][parName.c_str()]["injVal"]
                                        .GetDouble();
-        // printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n",
-        // parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n",
+            parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         double count_rate = 0.0;
         if (pdfBuilder->IsNeutrino(parName))
         {
@@ -747,19 +803,19 @@ namespace mst
           const auto &channels = pdf->GetChannels();
           for (const auto &channel : channels)
           {
-            // printf("\tadding channel %s\n", channel.fName.data());
+            printf("\tadding channel %s\n", channel.fName.data());
             double channel_rate = 0.0;
             channel_rate = pdfBuilder->AddHistToPDF(parName.c_str(),
                                                     channel.fName.data(), trueVal, fitter->GetNeutrinoPropagator());
             count_rate += channel_rate;
-            // printf("\tchannel rate: %f\n", channel_rate);
+            printf("\tchannel rate: %f\n", channel_rate);
           }
         }
         else
         {
           count_rate = pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         }
-        // printf("count_rate = %f\n", count_rate);
+        printf("count_rate = %f -> total counts: %g\n", count_rate, count_rate * mod->GetExposure());
         totalCounts += count_rate * mod->GetExposure();
       }
       // register new data set. The previous one is delete inside the model
@@ -871,8 +927,9 @@ namespace mst
             {
               printf("\tdrawing %s channel %s\n", parName.data(), channel.fName.data());
               pdfBuilder->AddHistToPDF(parName.c_str(),
-                                       channel.fName.data(), mod->GetExposure() * par->GetFitBestValue(), fitter->GetNeutrinoPropagator());
+                                       channel.fName.data(), par->GetFitBestValue(), fitter->GetNeutrinoPropagator());
               auto pdf_tmp = pdfBuilder->GetPDF("");
+              pdf_tmp->Scale( mod->GetExposure() ); 
               auto pdf_tmp_pr = pdf_tmp->Projection(d);
               pdf_tmp_pr->SetName(Form("%s.%s", parName.c_str(), channel.fName.data()));
               pdf_tmp_pr->SetTitle(Form("%s - %s", parName.c_str(), channel.fName.data()));
@@ -988,7 +1045,7 @@ namespace mst
         fitter->Minimize(step.value["method"].GetString(),
                          step.value["resetMinuit"].GetBool(),
                          step.value["maxCall"].GetDouble(),
-                         step.value["tollerance"].GetDouble());
+                         step.value["tolerance"].GetDouble());
       }
 
       // extract temporary best fit value
@@ -1134,7 +1191,7 @@ namespace mst
         fitter->Minimize(step.value["method"].GetString(),
                          step.value["resetMinuit"].GetBool(),
                          step.value["maxCall"].GetDouble(),
-                         step.value["tollerance"].GetDouble());
+                         step.value["tolerance"].GetDouble());
       }
 
       // extract temporary best fit value
