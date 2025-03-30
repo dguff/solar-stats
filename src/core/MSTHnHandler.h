@@ -124,8 +124,11 @@ class MSTHnHandler : public MSObject
       }
 
       //! Rebin a THn to match the given axes settings
-      static THn* RebinHist(const THn* hn, const std::vector<int>& iaxis_target, const std::vector<TAxis*>& axes_reference);
-
+      static THn* RebinHist(const THn* hn, const std::vector<int>& iaxis_target, const std::vector<TAxis*>& axes_reference, int* bin_group=nullptr);
+      
+      //! Rebin a THn to match the given axes settings
+      static THn* RebinHist(const THn* hn, const std::vector<int>& iaxis_target, const std::vector<axis>& axes_reference, int* bin_group=nullptr);
+      
       //! Print THn axis settings
       inline static void PrintAxes(const THn* hn) {
         printf("%s axis settings:\n", hn->GetName());
@@ -134,6 +137,16 @@ class MSTHnHandler : public MSObject
           printf("\taxis %d: title: %s,  %d bins, min %f, max %f\n", 
               i, axis->GetTitle(), axis->GetNbins(), axis->GetXmin(), axis->GetXmax());
         }
+      }
+
+      //! Integrate a THn
+      static double Integral(const THn* hn, const bool respectRange = false) {
+        auto it = hn->CreateIter(respectRange);
+        Long64_t i = 0;
+        double integral = 0;
+        while ((i = it->Next()) >= 0) integral += hn->GetBinContent(i);
+        delete it;
+        return integral;
       }
 
       //! The normalization of the histogram will be performed in the 
@@ -171,7 +184,7 @@ class MSTHnHandler : public MSObject
         return true;
       }
 
-      void NormalizeHn(THn* hn, const double norm = 1.0) const;  
+      static void NormalizeHn(THn* hn, const double norm = 1.0, const bool respectUserRange = false);  
 
       //! Get axes vector
       const std::vector<axis>& GetAxes() const { return fAxis; }
