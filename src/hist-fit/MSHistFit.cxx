@@ -1269,8 +1269,7 @@ namespace mst
    inline TCanvas *GetCanvasProfiles(const rapidjson::Document &json, MSMinimizer *fitter,
                                      const double NLL, const int nPts)
    {
-
-      // retrieve the canvas or initialize it
+      // Declare canvas pointers for each type of profile
       TCanvas *cc = nullptr;
 
       if (json["MC"].HasMember("profile2D"))
@@ -1345,6 +1344,8 @@ namespace mst
             iwindow++;
          }
       }
+
+      // Return the last created canvas (optional, as all canvases are created independently)
       return cc;
    }
 
