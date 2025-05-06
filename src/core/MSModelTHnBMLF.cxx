@@ -32,10 +32,11 @@ namespace mst
          auto mspar = GetParameter(parName);
          if (mspar->IsInput() == false)
             continue;
-         const double par_cts = GetMinuitParameter(par, parName);
-         const double count_rate = fPDFBuilder->AddHistToPDF(parName, par_cts, propagator);
-         //printf("parName = %s, par_cts = %f, count_rate = %f\n", parName.c_str(), par_cts, count_rate);
+         const double par_value = GetMinuitParameter(par, parName);
+         const double count_rate = fPDFBuilder->AddHistToPDF(parName, par_value, propagator);
+         //printf("parName = %s, par_cts = %f, count_rate = %f\n", parName.c_str(), par_value, count_rate);
       }
+      //getchar();
       // for (const auto& par_itr : *fParameters) {
       // if (par_itr.second->IsInput()) {
       // const std::string par_name = GetLocalName( par_itr.second->GetName() );

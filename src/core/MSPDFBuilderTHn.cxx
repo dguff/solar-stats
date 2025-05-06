@@ -15,6 +15,7 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 // c/c++ libs
+#include <cstddef>
 #include <iostream>
 
 // ROOT libs
@@ -190,24 +191,23 @@ namespace mst
                   histName.data(), channel.fName.data(), channel.fResponeMatrix.c_str());
           exit(EXIT_FAILURE);
         }
-        THnD *respMatrix = dynamic_cast<THnD *>(im_resp->second);
+        THnD *respMatrix = dynamic_cast<THnD*>(im_resp->second);
         //hn = ApplyResponseMatrixAndCrossSection(hn_osc, respMatrix, channel);
         hn = ApplyResponseMatrix( hn_osc_xs, respMatrix );
-        MSTHnHandler::NormalizeHn(hn);
+        const double range_efficiency = 1.0; // MSTHnHandler::Integral(hn, true);
         response_matrix_applied = true;
-        channel.fNormalization *= exposure_conversion;
+        channel.fNormalization *= (exposure_conversion * range_efficiency);
 
         fTmpPDF->Add(hn, scaling * channel.fNormalization);
+
+        //printf("[0] scaling: %f, normalization: %g (range acceptance: %g)\n", 
+          //scaling, channel.fNormalization, range_efficiency);
+        //const double exposure = 1e4;
+        //printf("hn integral = %f\n", MSTHnHandler::Integral(hn));
+
 /*
- *
- *        printf("[0] scaling: %f, normalization: %g\n", 
- *          scaling, channel.fNormalization);
- *        const double exposure = 1e4;
- *        printf("hn integral = %f\n", MSTHnHandler::Integral(hn) * scaling * channel.fNormalization * exposure);
- *
- *
  *        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
- *        TCanvas *c = new TCanvas("c", "c", 1600, 900);
+ *        TCanvas *c = new TCanvas("c", "c", 1200, 600);
  *
  *        TH1* hog = nullptr; TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
  *        if (fOscillogram->GetNdimensions() == 1) 
@@ -242,20 +242,17 @@ namespace mst
  *        c->cd(4); hrecosc->Draw("colz");
  *        gPad->Update();
  *        printf("hrecosc integral = %f\n", hrecosc->Integral());
- *        // printf("rate = %f\n", rate);
  *
  *        timer->TurnOn();
  *        timer->Reset();
+ *        printf("[%s] %s.%s: normalization: %g, rate: %g\n",
+ *            fName.data(), histName.data(), channel.fName.data(),
+ *            channel.fNormalization, scaling * channel.fNormalization);
  *        getchar();
  *        timer->TurnOff();
+ *
  */
-
         total_rate += scaling * channel.fNormalization;
-
-        // printf("[%s] %s.%s: normalization: %g, rate: %g\n",
-        // fName.data(), histName.data(), channel.fName.data(),
-        // channel.fNormalization, scaling * channel.fNormalization);
-        // getchar();
 
         delete hn_osc;
         delete hn;
@@ -294,7 +291,8 @@ namespace mst
     //   TAxis *axis = fTmpPDF->GetAxis(i);
     //   std::cout << "Axis " << i << ": " << axis->GetNbins() << " bins, range [" << axis->GetXmin() << ", " << axis->GetXmax() << "]" << std::endl;
     // }
-    //printf("[0] total_rate = %f\n", total_rate);
+    //printf("[0] total_rate = %f: fTmpPDF integral: %g\n",
+        //total_rate, MSTHnHandler::Integral(fTmpPDF, true));
     return total_rate;
   }
 
@@ -374,15 +372,17 @@ namespace mst
       // Call ApplyResponseMatrixAndCrossSection with the rebinned histogram
       hn = ApplyResponseMatrix(hn_osc_xs, respMatrix);
       MSTHnHandler::NormalizeHn(hn);
+      const double range_efficiency = 1.0; //MSTHnHandler::Integral(hn, true);
       response_matrix_applied = true;
-      ch.fNormalization *= exposure_conversion;
+      ch.fNormalization *= (exposure_conversion * range_efficiency);
 
       fTmpPDF->Add(hn, scaling * ch.fNormalization);
 
-      //printf("[1] scaling: %f, normalization: %g\n", 
-          //scaling, ch.fNormalization);
+      //printf("[1] scaling: %f, normalization: %g (range acceptance: %g)\n", 
+          //scaling, ch.fNormalization, range_efficiency);
       //const double exposure = 1e4;
-      //printf("hn integral = %f\n", MSTHnHandler::Integral(hn) * scaling * ch.fNormalization *exposure);
+      //printf("hn integral = %f\n", MSTHnHandler::Integral(hn));
+
       //TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
       //TCanvas *c = new TCanvas("c", "c", 1600, 900);
       //TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
@@ -457,7 +457,8 @@ namespace mst
               pdfType, histName.data());
       exit(EXIT_FAILURE);
     }
-    //printf("[1] total_rate = %f\n", total_rate);
+    //printf("[1] total_rate = %f: fTmpPDF integral: %g\n",
+        //total_rate, MSTHnHandler::Integral(fTmpPDF, true));
     return total_rate;
   }
 
@@ -541,8 +542,9 @@ namespace mst
     }
     else if (procedure == MCRealizationProcedure::kAsimov)
     {
-      printf("tmp PDF integral = %f\n", MSTHnHandler::Integral(fTmpPDF));
-      MSTHnHandler::NormalizeHn(fTmpPDF, ctsNum);
+      //printf("tmp PDF integral = %f\n", MSTHnHandler::Integral(fTmpPDF));
+      //printf("Total number of counts set: %d\n", ctsNum);
+      MSTHnHandler::NormalizeHn(fTmpPDF, ctsNum, false);
       auto *iter = realization->CreateIter(true);
       int coords[dim];
       Long64_t i = 0;
@@ -568,8 +570,8 @@ namespace mst
     if (rndTmpCopy != nullptr)
       gRandom = rndTmpCopy;
 
-    printf("realization integral = %f\n", MSTHnHandler::Integral(realization));
-    getchar();
+    //printf("realization integral (in axis range) = %f\n", MSTHnHandler::Integral(realization, true));
+    //getchar();
 
     return realization;
   }
@@ -832,9 +834,7 @@ namespace mst
       }
     }
 
-
     const TAxis* response_axis = responseMatrix->GetAxis(iaxis_response_reco);
-
     THn* target = MSTHnHandler::RebinHist(target_og, target_axes, ref_axes);
 
     THnD *product = dynamic_cast<THnD*>(fHandler.CreateHn());
@@ -895,38 +895,61 @@ namespace mst
       MSTHnPDFNeutrino::NuIntChannel_t& channel)
   {
     const std::vector<double>& crossSection = channel.fCrossSection;
-    const MSTHnHandler::axis& energy_axis_settings = fInternalHandler.GetAxes().at(0);
+    //const MSTHnHandler::axis& energy_axis_settings = fInternalHandler.GetAxes().at(0);
     double xsec = 0.0; 
-    const double dE = (energy_axis_settings.fMax - energy_axis_settings.fMin) / energy_axis_settings.fNbins;
+    //const double dE = (energy_axis_settings.fMax - energy_axis_settings.fMin) / energy_axis_settings.fNbins;
 
     THnD* product = static_cast<THnD*>(fInternalHandler.CreateHn());
-    int ibin[1] = {0};
+
+    //MSTHnHandler::PrintAxes(target);
+    //MSTHnHandler::PrintAxes(product);
+    //printf("cross section size: %ld\n", crossSection.size());
+
     double &normalization = channel.fNormalization;
 
-    if (target->GetNdimensions() == 1) {
-      for (size_t i = 1; i <= energy_axis_settings.fNbins; i++)
-      { // true energy bins loop
-        xsec = crossSection.at(i - 1);
-        ibin[0] = i;
-        const double xsec_ene = xsec * target->GetBinContent(ibin);
-        normalization += xsec_ene;
-        product->SetBinContent(ibin, xsec_ene);
-      }
-    } else if (target->GetNdimensions() == 2) {
-      const MSTHnHandler::axis& nadir_axis_settings = fInternalHandler.GetAxes().at(1);
-      int ibin[2] = {0, 0};
-      for (size_t inadir = 1; inadir < nadir_axis_settings.fNbins; inadir++) {
-        for (size_t ienergy = 1; ienergy <= energy_axis_settings.fNbins; ienergy++)
-        { // true energy bins loop
-          xsec = crossSection.at(ienergy - 1);
-          ibin[0] = ienergy;
-          ibin[1] = inadir;
-          const double xsec_ene = xsec * target->GetBinContent(ibin);
-          normalization += xsec_ene;
-          product->SetBinContent(ibin, xsec_ene);
-        }
-      }
+    auto* iter = target->CreateIter(false);
+    Long64_t i = 0;
+    int ibin[target->GetNdimensions()];
+
+    while ((i = iter->Next(ibin)) >= 0) {
+      const double bc = target->GetBinContent(ibin);
+      const int ienergy = ibin[0]; 
+      if (ienergy == 0 || bc == 0) continue;
+      xsec = crossSection.at(ienergy - 1);
+      const double xsec_ene = xsec * bc;
+      normalization += xsec_ene;
+      product->SetBinContent(ibin, xsec_ene);
     }
+    
+    delete iter;
+/*
+ *
+ *    if (target->GetNdimensions() == 1) {
+ *      int ibin[1] = {0};
+ *      for (size_t i = 1; i <= energy_axis_settings.fNbins; i++)
+ *      { // true energy bins loop
+ *        xsec = crossSection.at(i - 1);
+ *        ibin[0] = i;
+ *        const double xsec_ene = xsec * target->GetBinContent(ibin);
+ *        normalization += xsec_ene;
+ *        product->SetBinContent(ibin, xsec_ene);
+ *      }
+ *    } else if (target->GetNdimensions() == 2) {
+ *      const MSTHnHandler::axis& nadir_axis_settings = fInternalHandler.GetAxes().at(1);
+ *      int ibin[2] = {0, 0};
+ *      for (size_t inadir = 1; inadir < nadir_axis_settings.fNbins; inadir++) {
+ *        for (size_t ienergy = 1; ienergy <= energy_axis_settings.fNbins; ienergy++)
+ *        { // true energy bins loop
+ *          xsec = crossSection.at(ienergy - 1);
+ *          ibin[0] = ienergy;
+ *          ibin[1] = inadir;
+ *          const double xsec_ene = xsec * target->GetBinContent(ibin);
+ *          normalization += xsec_ene;
+ *          product->SetBinContent(ibin, xsec_ene);
+ *        }
+ *      }
+ *    }
+ */
 
     return product;
   }

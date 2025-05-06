@@ -265,6 +265,9 @@ namespace mst
           isMemberCorrect(axis.value, "label", "String");
           isMemberCorrect(axis.value, "limits", "Array", "Number", 2);
           isMemberCorrect(axis.value, "nbins", "Int");
+          if (axis.value.HasMember("range")) {
+            isMemberCorrect(axis.value, "range", "Array", "Number", 2);
+          }
         }
       }
     } //
@@ -464,6 +467,10 @@ namespace mst
                                    axis.value["limits"][1].GetDouble());
           internalHandler.SetNbins(axisID, axis.value["nbins"].GetInt());
           internalHandler.SetLabel(axisID, axis.value["label"].GetString());
+          if (axis.value.HasMember("range")) {
+            internalHandler.SetRange(axisID, axis.value["range"][0].GetDouble(),
+                axis.value["range"][1].GetDouble());
+          }
         }
       }
 
@@ -1323,7 +1330,7 @@ namespace mst
     TGraph *gContour = nullptr;
     TMinuit *minuit = fitter->GetMinuit();
 
-    minuit->SetErrorDef(0.5 * nsigma * nsigma);
+    minuit->SetErrorDef(nsigma * nsigma);
     gContour = static_cast<TGraph *>(minuit->Contour(nPoints, ipar1, ipar2));
 
     minuit->SetErrorDef(0.5);
