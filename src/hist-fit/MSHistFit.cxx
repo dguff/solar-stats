@@ -38,7 +38,6 @@
 
 namespace mst
 {
-
   inline TH1* AdjustHist(const TH1* target, const MSTHnHandler::axis& handler_axis) {
     TH1* outHist = nullptr;
     if (dynamic_cast<const TH1D*>(target) == nullptr) {
@@ -367,6 +366,7 @@ namespace mst
   inline MSMinimizer *InitializeAnalysis(const rapidjson::Document &json,
                                          const std::string &datafileName)
   {
+
     // initialize fitter
     MSMinimizer *fitter = new MSMinimizer();
 
@@ -522,6 +522,7 @@ namespace mst
       bool has_nadir = false;
       THn *hnNadir = nullptr;
       THn* hnNadirHP = nullptr; 
+
       for (const auto &axis_id : axes_list)
       {
         TString axis_name = handler.GetAxes().at(axis_id).fLabel;
@@ -811,6 +812,7 @@ namespace mst
           for (const auto &channel : channels)
           {
             printf("\tadding channel %s\n", channel.fName.data());
+                  // printf("\tadding channel %s\n", channel.fName.data());
             double channel_rate = 0.0;
             channel_rate = pdfBuilder->AddHistToPDF(parName.c_str(),
                                                     channel.fName.data(), trueVal, fitter->GetNeutrinoPropagator());
@@ -868,6 +870,7 @@ namespace mst
    */
   inline TCanvas *GetCanvasFit(const rapidjson::Document &json, const MSMinimizer *fitter)
   {
+
     // Retrieve the canvas and define number of canvases
     int nMaxDim = 0;
     int nMaxMod = 0;
@@ -1133,8 +1136,7 @@ namespace mst
                          const string &parName1, const string &parName2, const double NLL,
                          const int nPts1, const int nPts2)
   {
-
-    // retrieve parameters of interest (poi) from the fitter
+      // Retrieve parameters from the fitter
     mst::MSParameter *poi1 = fitter->GetParameter(parName1.c_str());
     if (!poi1)
     {
@@ -1147,20 +1149,15 @@ namespace mst
       std::cerr << "Profile >> error: parameter " << parName2 << " not found\n";
       return nullptr;
     }
+
     poi1->SetRange(poi1->GetFitBestValue() - NLL * poi1->GetFitBestValueErr(),
                    poi1->GetFitBestValue() + NLL * poi1->GetFitBestValueErr());
     poi2->SetRange(poi2->GetFitBestValue() - NLL * poi2->GetFitBestValueErr(),
                    poi2->GetFitBestValue() + NLL * poi2->GetFitBestValueErr());
 
-    printf("Building profile likelihood for %s and %s\n", parName1.c_str(), parName2.c_str());
-    printf("parameter %s range: [%g, %g]\n", parName1.c_str(), poi1->GetRangeMin(), poi1->GetRangeMax());
-    printf("parameter %s range: [%g, %g]\n", parName2.c_str(), poi2->GetRangeMin(), poi2->GetRangeMax());
-
-    // save best fit values to restore the status of the parameters after the
-    // scanning
+      // Store best fit values
     vector<double> fitBestValue(fitter->GetParameterMap()->size(), -1);
     vector<double> fitBestValueErr(fitter->GetParameterMap()->size(), -1);
-    {
       int parIndex = 0;
       for (auto it : *fitter->GetParameterMap())
       {
@@ -1168,29 +1165,27 @@ namespace mst
         fitBestValueErr.at(parIndex) = it.second->GetFitBestValueErr();
         parIndex++;
       }
-    }
 
-    // Initialize output map
+      // Create likelihood histogram
     TH2D *hpll = new TH2D("hpll", "Profiled likelihood",
                           nPts1, poi1->GetRangeMin(), poi1->GetRangeMax(),
                           nPts2, poi2->GetRangeMin(), poi2->GetRangeMax());
-    // store absolute minimum of the likelihood
+
     double absMinNLL = std::numeric_limits<double>::max();
 
     // define auxiliary lambda function for profiling, which has visibility over
     // all variables defined up to now
     auto Scan = [&](double t1Val, double t2Val)
-    {
-      if (t1Val < poi1->GetRangeMin() || t1Val > poi1->GetRangeMax())
-        return false;
-      poi1->FixTo(t1Val);
-      if (t2Val < poi2->GetRangeMin() || t2Val > poi2->GetRangeMax())
-        return false;
-      poi2->FixTo(t2Val);
+      {
+         if (t1Val < poi1->GetRangeMin() || t1Val > poi1->GetRangeMax() ||
+             t2Val < poi2->GetRangeMin() || t2Val > poi2->GetRangeMax())
+            return false;
 
-      // get bin index in the nll map
-      const int i1 = hpll->GetXaxis()->FindBin(t1Val);
-      const int i2 = hpll->GetYaxis()->FindBin(t2Val);
+         poi1->FixTo(t1Val);
+         poi2->FixTo(t2Val);
+
+         int i1 = hpll->GetXaxis()->FindBin(t1Val);
+         int i2 = hpll->GetYaxis()->FindBin(t2Val);
 
       for (const auto &step : json["MinimizerSteps"].GetObject())
       {
@@ -1201,8 +1196,7 @@ namespace mst
                          step.value["tolerance"].GetDouble());
       }
 
-      // extract temporary best fit value
-      const double tmpMinNLL = fitter->GetMinNLL();
+         double tmpMinNLL = fitter->GetMinNLL();
       hpll->SetBinContent(i1, i2, tmpMinNLL);
       // update absolute minimum if needed
       if (tmpMinNLL < absMinNLL)
@@ -1225,59 +1219,81 @@ namespace mst
         return false;
     };
 
-    // perform actual scan
+      // Find center bin
+      int centerBinX = hpll->GetXaxis()->FindBin(poi1->GetFitBestValue());
+      int centerBinY = hpll->GetYaxis()->FindBin(poi2->GetFitBestValue());
+
+      // Get spiral order
+      auto GenerateSpiralOrder = [&](int nBinsX, int nBinsY, int centerX, int centerY) -> vector<pair<int, int>>
     {
-      fitter->SyncFitParameters(true);
+         vector<pair<int, int>> spiralOrder;
+         int dx[4] = {1, 0, -1, 0};
+         int dy[4] = {0, 1, 0, -1};
+         int x = centerX, y = centerY, stepSize = 1, direction = 0;
 
-      const int n_fits = nPts1 * nPts2;
-      int counter = 0;
+         // Only add the center if it is in the valid region
+         if (x >= 1 && x <= nBinsX && y >= 1 && y <= nBinsY)
+            spiralOrder.emplace_back(x, y);
 
-      for (int j1 = 1; j1 <= hpll->GetNbinsX(); j1++)
+
+         while (spiralOrder.size() < nBinsX * nBinsY)
+         {
+            for (int step = 0; step < 2; step++)
+            {
+               for (int i = 0; i < stepSize; i++)
+               {
+                  x += dx[direction];
+                  y += dy[direction];
+                  if (x >= 1 && x <= nBinsX && y >= 1 && y <= nBinsY)
+                     spiralOrder.emplace_back(x, y);
+               }
+               direction = (direction + 1) % 4;
+            }
+            stepSize++;
+         }
+         return spiralOrder;
+      };
+      vector<pair<int, int>> spiralOrder = GenerateSpiralOrder(hpll->GetNbinsX(), hpll->GetNbinsY(), centerBinX, centerBinY);
+
+      std::cout << "Number of points: " << spiralOrder.size() << std::endl;
+
+      // Perform scan in spiral order
+      for (const auto &p : spiralOrder)
       {
-        for (int j2 = 1; j2 <= hpll->GetNbinsY(); j2++)
-        {
-          const double t1Val = hpll->GetXaxis()->GetBinCenter(j1);
-          const double t2Val = hpll->GetYaxis()->GetBinCenter(j2);
-          Scan(t1Val, t2Val);
-          counter++;
-          if (counter % 100 == 0)
-          {
-            printf("Scanning %d/%d\n", counter, n_fits);
-          }
-        }
+         int j1 = p.first;
+         int j2 = p.second;
+         double t1Val = hpll->GetXaxis()->GetBinCenter(j1);
+         double t2Val = hpll->GetYaxis()->GetBinCenter(j2);
+         if (t1Val >= 0 && t2Val >= 0)
+         {
+            std::cout << "Scanning " << parName1 << " = " << t1Val << ", " << parName2 << " = " << t2Val << std::endl;
+            Scan(t1Val, t2Val);
+         }
       }
 
-      // normilize profile to the absolute minimum found during while profiling
-      const double min_pll = hpll->GetMinimum();
-      for (int i = 0; i < hpll->GetNbinsX(); i++)
-      {
-        for (int j = 0; j < hpll->GetNbinsY(); j++)
-        {
-          hpll->SetBinContent(i, j, hpll->GetBinContent(i, j) - min_pll);
-        }
-      }
-    }
+      // Normalize likelihood profile
+      double min_pll = hpll->GetMinimum();
+      for (int i = 1; i <= hpll->GetNbinsX(); i++)
+         for (int j = 1; j <= hpll->GetNbinsY(); j++)
+           hpll->SetBinContent(i, j, hpll->GetBinContent(i, j) - min_pll);
 
-    // reset parameter original status
-    // restore best fit values of the parameters
-    {
-      int parIndex = 0;
+      // Restore parameter values
+      parIndex = 0;
       for (auto it : *fitter->GetParameterMap())
-      {
+    {
+
         it.second->SetFitBestValue(fitBestValue.at(parIndex));
         it.second->SetFitBestValueErr(fitBestValueErr.at(parIndex));
         parIndex++;
       }
-    }
     poi1->Release();
     poi2->Release();
 
-    // Set titles (this must be done after filling the TGraph. Probably it's a
-    // bug of ROOT
+      // Set histogram titles
     hpll->SetName(Form("nll_%s_%s", parName1.c_str(), parName2.c_str()));
-    hpll->GetXaxis()->SetTitle(parName1.data());
-    hpll->GetYaxis()->SetTitle(parName2.data());
-    hpll->GetZaxis()->SetTitle("-#Delta LogLikelihood)");
+      hpll->GetXaxis()->SetTitle(parName1.c_str());
+      hpll->GetYaxis()->SetTitle(parName2.c_str());
+      hpll->GetZaxis()->SetTitle("-#Delta LogLikelihood");
     return hpll;
   }
 
@@ -1344,8 +1360,7 @@ namespace mst
   inline TCanvas *GetCanvasProfiles(const rapidjson::Document &json, MSMinimizer *fitter,
                                     const double NLL, const int nPts)
   {
-
-    // retrieve the canvas or initialize it
+      // Declare canvas pointers for each type of profile
     TCanvas *cc = nullptr;
 
     if (json["MC"].HasMember("profile2D"))
@@ -1420,8 +1435,11 @@ namespace mst
         iwindow++;
       }
     }
+
+      // Return the last created canvas (optional, as all canvases are created independently)
     return cc;
   }
+
 } // namespace mst
 
 #endif // MST_MSHistFit_CXX
