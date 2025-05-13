@@ -348,8 +348,10 @@ namespace mst
         }
         else
         {
-          if (fOscillogram == nullptr)
+          if (fOscillogram == nullptr) {
             ComputeOscillationProb(propagator, fOscillogram);
+          }
+          
         }
       }
       MSTHnPDFNeutrino::NuIntChannel_t &ch = pdf->GetChannel(channel);
@@ -578,7 +580,7 @@ namespace mst
     return realization;
   }
 
-  THn *MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator *propagator, THnD* oscillogram)
+  THnD *MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator *propagator, THnD*& oscillogram)
   {
     // printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n");
     // printf("Δm12 = %g\n", propagator->GetDeltaMSq21());

@@ -224,7 +224,7 @@ namespace mst
     }
 
     // Private methods
-    THn *ComputeOscillationProb(NeutrinoPropagator *propagator, THnD *oscillogram = nullptr);
+    THnD *ComputeOscillationProb(NeutrinoPropagator *propagator, THnD*& oscillogram);
     THn *ApplyOscillationProb(const THn *target, const int pdg = 12);
     THn *ApplyResponseMatrix(const THn *target, const THn *responseMatrix);
     THn *ApplyCrossSection(const THn* target, MSTHnPDFNeutrino::NuIntChannel_t &channel);
