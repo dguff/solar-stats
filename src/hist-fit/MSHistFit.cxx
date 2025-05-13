@@ -1132,9 +1132,14 @@ namespace mst
   /*
    * Build profile likelihood scan for a pair of specific parameters
    */
-  inline TH2D *Profile2D(const rapidjson::Document &json, MSMinimizer *fitter,
-                         const string &parName1, const string &parName2, const double NLL,
-                         const int nPts1, const int nPts2)
+  inline TH2D *Profile2D(
+      const rapidjson::Document &json, 
+      MSMinimizer *fitter,
+      const string &parName1, 
+      const string &parName2, 
+      const double NLL,
+      const int nPts1, 
+      const int nPts2)
   {
       // Retrieve parameters from the fitter
     mst::MSParameter *poi1 = fitter->GetParameter(parName1.c_str());
@@ -1191,7 +1196,8 @@ namespace mst
       {
         fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
         fitter->Minimize(step.value["method"].GetString(),
-                         step.value["resetMinuit"].GetBool(),
+                         //step.value["resetMinuit"].GetBool(),
+                         false,
                          step.value["maxCall"].GetDouble(),
                          step.value["tolerance"].GetDouble());
       }
@@ -1258,6 +1264,7 @@ namespace mst
       std::cout << "Number of points: " << spiralOrder.size() << std::endl;
 
       // Perform scan in spiral order
+      int iteration = 0;
       for (const auto &p : spiralOrder)
       {
          int j1 = p.first;
@@ -1266,8 +1273,10 @@ namespace mst
          double t2Val = hpll->GetYaxis()->GetBinCenter(j2);
          if (t1Val >= 0 && t2Val >= 0)
          {
-            std::cout << "Scanning " << parName1 << " = " << t1Val << ", " << parName2 << " = " << t2Val << std::endl;
+            printf("[%i/%ld] Scanning %s = %f, %s = %f\n",
+                   iteration, spiralOrder.size(), parName1.c_str(), t1Val, parName2.c_str(), t2Val);
             Scan(t1Val, t2Val);
+            iteration++;
          }
       }
 
