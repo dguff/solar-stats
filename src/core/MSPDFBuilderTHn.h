@@ -191,7 +191,7 @@ namespace mst
     //! Temporary PDF
     THn *fTmpPDF{nullptr};
     //! Oscillogram
-    THn *fOscillogram{nullptr};
+    THnD *fOscillogram{nullptr};
     //! Pseudo-random number generator
     TRandom *fRnd{nullptr};
     //! Marley generator
@@ -224,7 +224,7 @@ namespace mst
     }
 
     // Private methods
-    THn *ComputeOscillationProb(NeutrinoPropagator *propagator);
+    THn *ComputeOscillationProb(NeutrinoPropagator *propagator, THnD *oscillogram = nullptr);
     THn *ApplyOscillationProb(const THn *target, const int pdg = 12);
     THn *ApplyResponseMatrix(const THn *target, const THn *responseMatrix);
     THn *ApplyCrossSection(const THn* target, MSTHnPDFNeutrino::NuIntChannel_t &channel);

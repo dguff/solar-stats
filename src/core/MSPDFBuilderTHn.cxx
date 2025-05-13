@@ -170,7 +170,7 @@ namespace mst
         else
         {
           if (fOscillogram == nullptr)
-            fOscillogram = ComputeOscillationProb(propagator);
+            ComputeOscillationProb(propagator, fOscillogram);
         }
       }
 
@@ -255,6 +255,7 @@ namespace mst
         total_rate += scaling * channel.fNormalization;
 
         delete hn_osc;
+        delete hn_osc_xs;
         delete hn;
       }
     }
@@ -348,7 +349,7 @@ namespace mst
         else
         {
           if (fOscillogram == nullptr)
-            fOscillogram = ComputeOscillationProb(propagator);
+            ComputeOscillationProb(propagator, fOscillogram);
         }
       }
       MSTHnPDFNeutrino::NuIntChannel_t &ch = pdf->GetChannel(channel);
@@ -449,6 +450,7 @@ namespace mst
       // getchar();
 
       delete hn_osc;
+      delete hn_osc_xs;
       delete hn;
     }
     else
@@ -576,7 +578,7 @@ namespace mst
     return realization;
   }
 
-  THn *MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator *propagator)
+  THn *MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator *propagator, THnD* oscillogram)
   {
     // printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n");
     // printf("Δm12 = %g\n", propagator->GetDeltaMSq21());
@@ -615,7 +617,11 @@ namespace mst
       xmax[0] = energy_axis_settings.fMax;
       xmax[1] = nadir_axis_settings.fMax;
 
-      THnD *oscillogram = new THnD("surv_map", "surv_map", 2, nbins, xmin, xmax);
+      if (oscillogram == nullptr)
+        oscillogram = new THnD("surv_map", "surv_map", 2, nbins, xmin, xmax);
+      else
+        oscillogram->Reset();
+
       TAxis *energy_axis = oscillogram->GetAxis(0);
       TAxis *nadir_axis = oscillogram->GetAxis(1);
       nadir_axis->SetRangeUser(nadir_axis_settings.fRangeMin, nadir_axis_settings.fRangeMax);
@@ -658,7 +664,11 @@ namespace mst
       xmin[0] = energy_axis_settings.fMin;
       xmax[0] = energy_axis_settings.fMax;
 
-      THnD *oscillogram = new THnD("surv_curve", "surv_curve", 1, nbins, xmin, xmax);
+      if (oscillogram == nullptr)
+        oscillogram = new THnD("surv_curve", "surv_curve", 1, nbins, xmin, xmax);
+      else
+        oscillogram->Reset();
+
       TAxis *energy_axis = oscillogram->GetAxis(0);
       auto *it = oscillogram->CreateIter(true);
       int coords[1];
