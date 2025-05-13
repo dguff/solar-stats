@@ -39,13 +39,13 @@ find_package(RapidJSON REQUIRED)
 find_package(Prob3plusplus REQUIRED)
 find_library(MARLEY
   NAMES MARLEY
-  PATHS "${MARLEY_DIR}/build"
+  PATHS "$ENV{MARLEY}/build"
   REQUIRED
   NO_DEFAULT_PATH
   )
 find_library(MARLEY_ROOT
   NAMES MARLEY_ROOT
-  PATHS "${MARLEY_DIR}/build"
+  PATHS "$ENV{MARLEY}/build"
   REQUIRED
   NO_DEFAULT_PATH
   )
@@ -53,10 +53,10 @@ find_library(MARLEY_ROOT
 
 include(${ROOT_USE_FILE})
 include_directories(
-  ${RapidJSON_INCLUDE_DIR}/..
+  ${RapidJSON_INCLUDE_DIR}
   ${ROOT_INCLUDE_DIRS}
   ${Prob3plusplus_INCLUDE_DIR}
-  ${MARLEY_DIR}/include
+  $ENV{MARLEY}/include
 )
 
 #----------------------------------------------------------------------------
