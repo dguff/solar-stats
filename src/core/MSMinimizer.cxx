@@ -16,6 +16,8 @@
 
 // root libs
 #include <TString.h>
+#include "Math/Functor.h"
+#include "Math/Factory.h"
 
 // m-stats libs
 #include "MSMinimizer.h"
@@ -54,11 +56,50 @@ MSMinimizer::~MSMinimizer()
    }
 
    if (fNeutrinoPropagator) delete fNeutrinoPropagator;
-
-   delete fMinuit;
 }
 
-TMinuit* MSMinimizer::InitializeMinuit (int verbosity, double errVal)
+void MSMinimizer::SetupMiminizerOptions(const rapidjson::Value& jopts)
+{
+  // Check if the json object is an array
+  if (!jopts.IsArray()) {
+    std::cerr << "MSMinimizer::SetupMiminizerOptions: json object is not an array" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  for (const auto &mz_itr : jopts.GetArray()) {
+    fMinimizers.push_back(MSMinimizerEngine_t());
+    auto& engine = fMinimizers.back();
+    const auto& mz = mz_itr.GetObject();
+    (mz.HasMember("type")) ? engine.fMinimizerOptions.SetMinimizerType( mz["type"].GetString()) 
+      : engine.fMinimizerOptions.SetMinimizerType("Minuit2");
+    (mz.HasMember("algorithm")) ? engine.fMinimizerOptions.SetMinimizerAlgorithm( mz["algorithm"].GetString())
+      : engine.fMinimizerOptions.SetMinimizerAlgorithm("Migrad");
+    (mz.HasMember("strategy")) ? engine.fMinimizerOptions.SetStrategy( mz["strategy"].GetInt())
+      : engine.fMinimizerOptions.SetStrategy(1);
+    (mz.HasMember("verbosity")) ? engine.fMinimizerOptions.SetPrintLevel( mz["verbosity"].GetInt())
+      : engine.fMinimizerOptions.SetPrintLevel(0);
+    (mz.HasMember("errordef")) ? engine.fMinimizerOptions.SetErrorDef( mz["errordef"].GetDouble())
+      : engine.fMinimizerOptions.SetErrorDef(0.5);
+    (mz.HasMember("precision")) ? engine.fMinimizerOptions.SetPrecision( mz["precision"].GetDouble())
+      : engine.fMinimizerOptions.SetPrecision(1e-16);
+    (mz.HasMember("maxcalls")) ? engine.fMinimizerOptions.SetMaxFunctionCalls( mz["maxcalls"].GetDouble())
+      : engine.fMinimizerOptions.SetMaxFunctionCalls(10000);
+    (mz.HasMember("maxiterations")) ? engine.fMinimizerOptions.SetMaxIterations( mz["maxiterations"].GetDouble())
+      : engine.fMinimizerOptions.SetMaxIterations(10000);
+    (mz.HasMember("tolerance")) ? engine.fMinimizerOptions.SetTolerance( mz["tolerance"].GetDouble())
+      : engine.fMinimizerOptions.SetTolerance(1e-4);
+
+    if (engine.fMinimizerOptions.PrintLevel()) {
+      printf("MSMinimizer::SetupMiminizerOptions() Minimizer options %ld created with the following options:\n", fMinimizers.size());
+      engine.fMinimizerOptions.Print();
+    }
+    getchar();
+   }
+ 
+   return;
+}
+
+void MSMinimizer::InitializeMinimizer(const int iengine)
 {
    // Check if module list contains at least one model
    if (fModelVector->size() == 0) {
@@ -100,38 +141,27 @@ TMinuit* MSMinimizer::InitializeMinuit (int verbosity, double errVal)
      i++;
    }
 
-   // Initialize minuit
-   delete fMinuit;
-   fMinuit = new TMinuit(fGlobalParMap->size());
-   fMinuit->SetFCN(&MSMinimizer::FCNNLLLikelihood);
+   // Initialize minimizer
+   auto& minimizer = fMinimizers.at(iengine).fMinimizer;
+   auto& options = fMinimizers.at(iengine).fMinimizerOptions;
+   minimizer = std::unique_ptr<ROOT::Math::Minimizer>(
+      ROOT::Math::Factory::CreateMinimizer(
+         options.MinimizerType(),
+         options.MinimizerAlgorithm()));
+   minimizer->SetOptions( options ); 
 
-   SetMinuitVerbosity(verbosity);
-   SetMinuitErrVal(errVal);
-   SetMinuitPrecision( 1e-16 ); 
+   fFcn = new ROOT::Math::Functor(this, &MSMinimizer::FCNNLLLikelihood, fGlobalParMap->size());
+   minimizer->SetFunction(*fFcn);
 
-   return fMinuit;
-}
-
-void MSMinimizer::SetMinuitErrVal(double errVal)
-{
-   if (!fMinuit) {
-      std::cerr << "MSMinimizer::SetMinuitErrVal: minuit not initialized yet"
-                << std::endl;
+   if (options.PrintLevel() > 0) {
+      printf("MSMinimizer::InitializeMinimizer() Minimizer %i created with the following options:\n", iengine);
+      options.Print();
    }
-   fMinuitArglist[0] = errVal;
-   fMinuit->mnexcm("SET ERR", fMinuitArglist, 1, fMinuitErrorFlag);
+
+   return;
 }
 
-void MSMinimizer::SetMinuitVerbosity(int level)
-{
-   if (!fMinuit) {
-      std::cerr << "MSMinimizer::SetMinuitVerbosity: minuit not initialized yet"
-                << std::endl;
-   }
-   fMinuit->SetPrintLevel(level);
-}
-
-void MSMinimizer::SyncFitParameters( bool resetParStartVal)
+void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
 {
    // Check whether minuit has been last sync against this minimizer
    // and define value of global pointer
@@ -142,7 +172,8 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
    }
 
    // Initialize minuit if not done manually
-   if (!fMinuit) InitializeMinuit();
+   if (!fMinimizers.at(iengine).fMinimizer) InitializeMinimizer(iengine);
+   auto& fMinimizer = fMinimizers.at(iengine).fMinimizer;
 
    const MSParameterMap::const_iterator gItB = fGlobalParMap->begin();
    const MSParameterMap::const_iterator gItE = fGlobalParMap->end();
@@ -161,12 +192,12 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                    << " -> synced all fields"
                                    << std::endl;
 
-         fMinuit->mnparm ( d, gIt->second->GetName().data(),
-               gIt->second->GetFitStartValue(),
-               gIt->second->GetFitStartStep(),
-               gIt->second->GetRangeMin(),
-               gIt->second->GetRangeMax(),
-               fMinuitErrorFlag);
+         fMinimizer->SetLimitedVariable(d, 
+             gIt->second->GetName().data(),
+             gIt->second->GetFitStartValue(),
+             gIt->second->GetFitStartStep(),
+             gIt->second->GetRangeMin(),
+             gIt->second->GetRangeMax());
 
          if (gIt->second->IsFixed()) {
             if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
@@ -174,8 +205,9 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                       << "] \"" << gIt->first << "\""
                                       << " -> fixed"
                                       << std::endl;
-            fMinuitArglist[0] = d+1;
-            fMinuit->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
+            //fMinimizerArglist[0] = d+1;
+            //fMinimizer->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
+            fMinimizer->FixVariable(d);
          }
 
       // otherwise update only changed field
@@ -187,9 +219,10 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                       << "] \"" << gIt->first << "\""
                                       << " -> synced starting value"
                                       << std::endl;
-            fMinuitArglist[0] = d+1;
-            fMinuitArglist[1] = gIt->second->GetFitStartValue();
-            fMinuit->mnexcm("SET PAR",fMinuitArglist,2, fMinuitErrorFlag);
+            //fMinimizerArglist[0] = d+1;
+            //fMinimizerArglist[1] = gIt->second->GetFitStartValue();
+            //fMinimizer->mnexcm("SET PAR",fMinuitArglist,2, fMinuitErrorFlag);
+            fMinimizer->SetVariableValue(d, gIt->second->GetFitStartValue());
          }
 
          if (!lIt->second->IsFixed()) {
@@ -198,8 +231,9 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                       << "] \"" << gIt->first << "\""
                                       << " -> fixed"
                                       << std::endl;
-            fMinuitArglist[0] = d+1;
-            fMinuit->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
+            //fMinimizerArglist[0] = d+1;
+            //fMinimizer->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
+            fMinimizer->FixVariable(d);
          }
 
       } else {
@@ -209,8 +243,9 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                       << "] \"" << gIt->first << "\""
                                       << " -> released"
                                       << std::endl;
-            fMinuitArglist[0] = d+1;
-            fMinuit->mnexcm("RELEASE", fMinuitArglist , 1, fMinuitErrorFlag);
+            //fMinimizerArglist[0] = d+1;
+            //fMinimizer->mnexcm("RELEASE", fMinuitArglist , 1, fMinuitErrorFlag);
+            fMinimizer->ReleaseVariable(d);
          }
 
          if ( resetParStartVal ||
@@ -224,12 +259,18 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
                                       << " -> synced all fields"
                                       << std::endl;
 
-            fMinuit->mnparm ( d, gIt->second->GetName().data(),
-                                 gIt->second->GetFitStartValue(),
-                                 gIt->second->GetFitStartStep(),
-                                 gIt->second->GetRangeMin(),
-                                 gIt->second->GetRangeMax(),
-                                 fMinuitErrorFlag);
+            //fMinimizer->mnparm ( d, gIt->second->GetName().data(),
+                                 //gIt->second->GetFitStartValue(),
+                                 //gIt->second->GetFitStartStep(),
+                                 //gIt->second->GetRangeMin(),
+                                 //gIt->second->GetRangeMax(),
+                                 //fMinimizerErrorFlag);
+            fMinimizer->SetLimitedVariable(d,
+                gIt->second->GetName().data(),
+                gIt->second->GetFitStartValue(),
+                gIt->second->GetFitStartStep(),
+                gIt->second->GetRangeMin(),
+                gIt->second->GetRangeMax());
          }
       }
    }
@@ -247,15 +288,13 @@ void MSMinimizer::SyncFitParameters( bool resetParStartVal)
 
 }
 
-void MSMinimizer::Minimize(const std::string& minimizer, bool resetFitStartValue) {
+void MSMinimizer::Minimize(const int iengine, bool resetFitStartValue) {
    // Sync parameters
-   SyncFitParameters(resetFitStartValue);
-   // Set maxcalls
-   fMinuitArglist[0] = fMinuitMaxCalls;
-   // Set tolerance
-   fMinuitArglist[1] = fMinuitTolerance;
+   SyncFitParameters(iengine, resetFitStartValue);
    // Run actual minimization
-   fMinuit->mnexcm(minimizer.c_str(), fMinuitArglist, 2, fMinuitErrorFlag);
+   //fMinimizer->mnexcm(minimizer.c_str(), fMinuitArglist, 2, fMinuitErrorFlag);
+   auto& fMinimizer = fMinimizers.at(iengine).fMinimizer;
+   fMinimizer->Minimize();
 
    if (GetMinuitStatus()) fNMinuitFails++;
 
@@ -264,20 +303,17 @@ void MSMinimizer::Minimize(const std::string& minimizer, bool resetFitStartValue
    for (MSParameterMap::const_iterator gIt = fGlobalParMap->begin();
          gIt != fGlobalParMap->end(); ++gIt) {
       int d = distance(gIt0, gIt);
-      double fitBestValue, fitBestValueErr;
-      double fitRangeMin, fitRangeMax;
-      TString name;
-      int index;
-      fMinuit->mnpout(d, name, fitBestValue, fitBestValueErr,
-                      fitRangeMin, fitRangeMax, index);
-      gIt->second->SetFitBestValue(fitBestValue);
-      gIt->second->SetFitBestValueErr(fitBestValueErr);
+      gIt->second->SetFitBestValue( fMinimizer->X()[d] );
+      gIt->second->SetFitBestValueErr( fMinimizer->Errors()[d] );
    }
 
    // Retrive info about the status of the minimation
    double errdef;
    int npari, nparx;
-   fMinuit->mnstat(fMinNLL,fEDM,errdef,npari,nparx,fCovQual);
+
+   fMinNLL = fMinimizer->MinValue();
+   fEDM = fMinimizer->Edm();
+   fCovQual = fMinimizer->CovMatrixStatus();
 
    // update oscillation parameters in the propagator
    for (const auto& par : *fGlobalParMap) {
@@ -302,15 +338,24 @@ void MSMinimizer::Minimize(const std::string& minimizer, bool resetFitStartValue
    UpdateOscillationParameters();
 }
 
-void MSMinimizer::FCNNLLLikelihood(int & npar, double * /*grad*/,
-      double &fval, double * par, int /*flag*/)
+double MSMinimizer::FCNNLLLikelihood(const double* par)
+    //(int & npar, double * [>grad<],
+      //double &fval, double * par, int [>flag<])
 {
-   fval = 0.0;
+   double fval = 0.0;
    MSModelVector* modelVector = global_pointer->fModelVector;
    NeutrinoPropagator* propagator = global_pointer->fNeutrinoPropagator;
    PropagatorInputs_t& propagator_inputs = global_pointer->fPropagatorInputs;
 
+   for (const auto& pp : *fGlobalParMap) {
+     printf("par[%s] index: %i, value: %f\n", pp.first.c_str(),
+        pp.second->GetIndex(),
+        par[pp.second->GetIndex()]);
+   }
+
    propagator_inputs.SetParameters( par );
+
+   getchar();
 
    propagator->SetMNS(propagator_inputs.x12, propagator_inputs.x13,
                       propagator_inputs.x23, 
@@ -320,6 +365,7 @@ void MSMinimizer::FCNNLLLikelihood(int & npar, double * /*grad*/,
                       propagator_inputs.useSinSq, propagator_inputs.nubar);
 
    for (const auto& i : *modelVector) fval += i->NLogLikelihood(par, propagator);
+   return fval;
 }
 
 void MSMinimizer::UpdateOscillationParameters() {

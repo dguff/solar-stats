@@ -30,7 +30,8 @@
 #define MST_MSMinimizer_H
 
 // ROOT libs
-#include <TMinuit.h>
+#include "Math/Minimizer.h"
+#include "Math/Functor.h"
 
 // m-stats libs
 #include "MSModel.h"
@@ -38,6 +39,9 @@
 
 // Prob3++
 #include "NeutrinoPropagator.h"
+
+// RapidJSON
+#include "rapidjson/document.h"
 
 namespace mst {
 
@@ -77,10 +81,15 @@ class MSMinimizer : public MSObject
         }
       }; 
 
+      struct MSMinimizerEngine_t {
+        std::unique_ptr<ROOT::Math::Minimizer> fMinimizer;
+        ROOT::Math::MinimizerOptions fMinimizerOptions;
+      };
+
    public:
       //! Constructor
       MSMinimizer(const std::string& name = "");
-      //! Desstructor
+      //! Destructor
       virtual ~MSMinimizer();
 
       //! Add model (the function does NOT take ownership of the object
@@ -121,10 +130,8 @@ class MSMinimizer : public MSObject
          for (const auto& it : *fGlobalParMap) it.second->PrintSummary();
       }
 
-      //! Initialize minuit with custom
-      //! -- verbosity can be from -1 (min) to 3 (max)
-      //! -- errVal is usually set to 0.5 for NLL or 1 for chi^2
-      TMinuit* InitializeMinuit(int verbosity = 0, double errVal = .5);
+      //! Create the minimizer using the options set in the json file
+      void InitializeMinimizer(const int iengine = 0);
 
       //! Set minuit verbosity
       void SetMinuitErrVal (double level);
@@ -132,17 +139,18 @@ class MSMinimizer : public MSObject
       //! Set minuit verbosity
       void SetMinuitVerbosity (int level);
 
-      //! Set minuit maxcalls
-      void SetMinuitMaxCalls (int maxcalls) { fMinuitMaxCalls = maxcalls; }
+      //! Set minimizers options
+      void SetupMiminizerOptions(const rapidjson::Value& jopts);
 
-      //! Set minuit tolerance
-      void SetMinuitTolerance (double tolerance) { fMinuitTolerance = tolerance; }
-
-      //! Set minuit precision
-      void SetMinuitPrecision (double precision) { fMinuitPrecision = precision; }
+      //! Get the minimizer options
+      const ROOT::Math::MinimizerOptions& GetMinimizerOptions(const int iengine) const { return fMinimizers.at(iengine).fMinimizerOptions; }
 
       //! Get the pointer to minuit
-      TMinuit* GetMinuit() const { return fMinuit;}
+      const std::unique_ptr<ROOT::Math::Minimizer>& GetMinimizer(const int iengine) const { return fMinimizers.at(iengine).fMinimizer;}
+
+      //! Get the vector of minimizers
+      const std::vector<MSMinimizerEngine_t>& GetMinimizers() const { return fMinimizers; }
+      std::vector<MSMinimizerEngine_t>& GetMinimizers() { return fMinimizers; }
 
       //! Get the pointer to the neutrino propagator
       NeutrinoPropagator* GetNeutrinoPropagator() const { return fNeutrinoPropagator; }
@@ -157,20 +165,12 @@ class MSMinimizer : public MSObject
       //! Optionally, do not reset the starting values of the fit parameters and 
       //! leave the  values corresponding to the best fit point found in the 
       //! previous interation
-      void SyncFitParameters(bool resetFitStartValue  = true);
+      void SyncFitParameters(const int iengine, bool resetFitStartValue  = true);
 
       //! Call the minimizer
-      void Minimize(const std::string& minimizer = "MINIMIZE", 
+      void Minimize(const int iengine = 0, 
                     bool resetFitStartValue = true);
       
-      //! Call the minimizer
-      void Minimize(const std::string& minimizer, bool resetFitStartValue, 
-                    int maxcalls, double tolerance) {
-         SetMinuitMaxCalls(maxcalls);
-         SetMinuitTolerance(tolerance);
-         Minimize(minimizer, resetFitStartValue);
-      }
-
       //! Get output status after minuit last call
       int GetMinuitStatus() const { return fMinuitErrorFlag; }
 
@@ -190,11 +190,9 @@ class MSMinimizer : public MSObject
 
 
       //! Wrapper function of NLogLikelihood for minuit
-      static void  FCNNLLLikelihood(int& npar, double* grad, double& fval,
-            double* par, int flag);
+      double  FCNNLLLikelihood(const double* par);
 
    private:
-
       //! Global pointer for using FCNNLLLikelihood as Minuit FCN
       static MSMinimizer* global_pointer;
 
@@ -205,10 +203,9 @@ class MSMinimizer : public MSObject
       //! Pointer to a local copy of the parameter map
       MSParameterMap* fLocalParMap {nullptr};
 
-      //! Pointer to minuit
-      TMinuit* fMinuit {nullptr};
-      //! Argument list used by minuit functions
-      double fMinuitArglist[2] {0.0,0.0};
+      //! List of minimizers
+      std::vector<MSMinimizerEngine_t> fMinimizers;
+
       //! Error flag used by minuit functions
       int fMinuitErrorFlag {0};
       //! Number of times migrad returned an error flag
@@ -219,15 +216,7 @@ class MSMinimizer : public MSObject
       //! Structure to hold the input parameters for the neutrino propagator
       PropagatorInputs_t fPropagatorInputs;
 
-      //! Maximum interations of minuit during minimization
-      int fMinuitMaxCalls {2000};
-
-      //! Tolerance on the maximum error during minimization
-      double fMinuitTolerance {1e-6};
-
-      //! Numerical precision of the minimizer
-      double fMinuitPrecision {1e-16};
-
+      ROOT::Math::Functor* fFcn {nullptr};
       //! Minimum of the negative log likelihood function
       //! Synced with mnstat-fmin
       //!    "the best function value found so far"

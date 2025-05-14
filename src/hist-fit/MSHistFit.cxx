@@ -297,17 +297,38 @@ namespace mst
         isMemberCorrect(par.value, "refVal", "Number");            // json/fittingModel/oscillation/*/parameters/*/refVal
       }
     }
-    isMemberCorrect(json, "MinimizerSteps", "Object"); // json/MinimizerSteps
-    for (const auto &step : json["MinimizerSteps"].GetObject())
+    isMemberCorrect(json, "Minimizer", "Array"); // json/MinimizerSteps
+    int iengine = 0;
+    for (const auto &step : json["Minimizer"].GetArray())
     { // json/MinimizerSteps/*
       if (verbose)
         cout << "info: checking step "                     //
-             << step.name.GetString() << endl;             //
-      isMemberCorrect(step.value, "method", "String");     // json/MinimizerSteps/*
-      isMemberCorrect(step.value, "resetMinuit", "Bool");  // json/MinimizerSteps/*/resetMinuit
-      isMemberCorrect(step.value, "maxCall", "Number");    // json/MinimizerSteps/*/maxCall
-      isMemberCorrect(step.value, "tolerance", "Number"); // json/MinimizerSteps/*/tolerance
-      isMemberCorrect(step.value, "verbosity", "Int");     // json/MinimizerSteps/*/verbosity
+             << iengine << endl;             //
+      isMemberCorrect(step, "type", "String");     // json/Minimizer/*/type
+      isMemberCorrect(step, "algorithm", "String");     // json/Minimizer/*/algorithm/
+      isMemberCorrect(step, "resetMinuit", "Bool");  // json/Minimizer/*/resetMinuit
+      if (step.HasMember("maxcalls")) {
+        isMemberCorrect(step, "maxcalls", "Number");    // json/Minimizer/*/maxcalls
+      }
+      if (step.HasMember("maxiterations")) {
+        isMemberCorrect(step, "maxiterations", "Number"); // json/Minimizer/*/maxiterations
+      }
+      isMemberCorrect(step, "tolerance", "Number"); // json/Minimizer/*/tolerance
+      if (step.HasMember("strategy"))
+      { // optional block:
+        isMemberCorrect(step, "strategy", "Number"); // json/Minimizer/*/strategy
+      }
+      if (step.HasMember("precision"))
+      { // optional block:
+        isMemberCorrect(step, "precision", "Number"); // json/Minimizer/*/precision
+      }
+      if (step.HasMember("maxIterations"))
+      { // optional block:
+        isMemberCorrect(step, "maxIterations", "Number"); // json/Minimizer/*/maxIterations
+      }
+      isMemberCorrect(step, "tolerance", "Number"); // json/Minimizer/*/tolerance/
+      isMemberCorrect(step, "verbosity", "Int");     // json/Minimizer/*/verbosity
+      iengine++;
     } //
     if (json.HasMember("MC"))
     {                                                                   // optional block:
@@ -364,11 +385,13 @@ namespace mst
    * the statistical models composing the likelihood.
    */
   inline MSMinimizer *InitializeAnalysis(const rapidjson::Document &json,
-                                         const std::string &datafileName)
+      const std::string &datafileName)
   {
 
     // initialize fitter
     MSMinimizer *fitter = new MSMinimizer();
+
+    fitter->SetupMiminizerOptions( json["Minimizer"] );
 
     if (json.HasMember("fittingModel") == false)
     {
@@ -386,7 +409,7 @@ namespace mst
         auto p = new mst::MSParameter(par.name.GetString());
         p->SetFixed(par.value["fixed"].GetBool());
         p->SetRange(par.value["range"].GetArray()[0].GetDouble(),
-                    par.value["range"].GetArray()[1].GetDouble());
+            par.value["range"].GetArray()[1].GetDouble());
         p->SetGlobal(par.value["global"].GetBool());
         p->SetFitStartStep(par.value["fitStep"].GetDouble());
         p->SetFitStartValue(par.value["refVal"].GetDouble());
@@ -435,7 +458,7 @@ namespace mst
           conversion << axis.name.GetString();
           conversion >> axisID;
           handler.SetRange(axisID, axis.value["range"][0].GetDouble(),
-                                   axis.value["range"][1].GetDouble());
+              axis.value["range"][1].GetDouble());
           handler.Rebin(axisID, axis.value["rebin"].GetInt());
           if (axis.value.HasMember("label"))
           {
@@ -444,8 +467,8 @@ namespace mst
           if (axis.value.HasMember("limits"))
           {
             handler.SetLimits(axisID,
-                              axis.value["limits"][0].GetDouble(),
-                              axis.value["limits"][1].GetDouble());
+                axis.value["limits"][0].GetDouble(),
+                axis.value["limits"][1].GetDouble());
           }
           if (axis.value.HasMember("nbins"))
           {
@@ -464,7 +487,7 @@ namespace mst
         for (const auto& axis : dataSet.value["oscillation_handler"]["axis"].GetObject()) {
           int axisID = std::atoi(axis.name.GetString()); 
           internalHandler.SetLimits(axisID, axis.value["limits"][0].GetDouble(),
-                                   axis.value["limits"][1].GetDouble());
+              axis.value["limits"][1].GetDouble());
           internalHandler.SetNbins(axisID, axis.value["nbins"].GetInt());
           internalHandler.SetLabel(axisID, axis.value["label"].GetString());
           if (axis.value.HasMember("range")) {
@@ -493,8 +516,8 @@ namespace mst
           pathToFile += dr.value["responseMatrix"][0].GetString();
           pdfBuilder->RegisterResponseMatrix(
               handler.LoadHist(pathToFile.Data(),
-                               dr.value["responseMatrix"][1].GetString(),
-                               dr.name.GetString()));
+                dr.value["responseMatrix"][1].GetString(),
+                dr.name.GetString()));
         }
       }
       // Load the PDF with the nadir exposure if present
@@ -510,8 +533,8 @@ namespace mst
         {
           pathToFile += i.value["pdf"][0].GetString();
           THn *hnNadir = handler.LoadHist(pathToFile.Data(),
-                                          i.value["pdf"][1].GetString(),
-                                          Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
+              i.value["pdf"][1].GetString(),
+              Form("%s_nadirExposurePDF", dataSet.name.GetString()), true);
           pdfBuilder->RegisterNadirPDF(hnNadir->Projection(0));
           delete hnNadir;
         }
@@ -541,7 +564,8 @@ namespace mst
         mod->SetNeutrinoPropagator(fitter->GetNeutrinoPropagator());
         for (const auto &par : oscillationParMap)
         {
-          mod->AddParameter(par.second);
+          printf("Adding oscillation parameter %s\n", par.second->GetName().data());
+          mod->AddParameter( new MSParameter(*par.second) );
         }
       }
 
@@ -554,7 +578,7 @@ namespace mst
         par->SetGlobal(component.value["global"].GetBool());
         par->SetFixed(component.value["fixed"].GetBool());
         par->SetRange(component.value["range"].GetArray()[0].GetDouble(),
-                      component.value["range"].GetArray()[1].GetDouble());
+            component.value["range"].GetArray()[1].GetDouble());
 
         // Check if fitStep is registered and is different from zero
         if (component.value["fitStep"].GetDouble())
@@ -580,101 +604,101 @@ namespace mst
 
         switch (pdfType)
         {
-        case kComponent:
-        {
-          MSTHnPDFComponent *pdf_ = new MSTHnPDFComponent(component.name.GetString());
-          pdf_->SetPDFType(pdfType);
-          THn *hn = nullptr;
-
-          if (component.value.HasMember("responseMatrix"))
-          {
-            hn = handler.LoadHist(pathToFile.Data(),
-                                  component.value["pdf"][1].GetString(),
-                                  component.name.GetString(), true);
-            pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
-          }
-          else
-          {
-            hn = handler.LoadHist(pathToFile.Data(),
-                                  component.value["pdf"][1].GetString(),
-                                  component.name.GetString(),
-                                  true);
-          }
-
-          if (has_nadir)
-          {
-            printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            THn *hn_tmp = handler.FactorizeTHn(hn, hnNadir);
-            MSTHnHandler::NormalizeHn(hn_tmp);
-            delete hn;
-            hn = hn_tmp;
-          }
-          pdf_->SetTHn(hn);
-
-          pdf = pdf_;
-          break;
-        }
-
-        case kNeutrino:
-        {
-          MSTHnPDFNeutrino *pdf_ = new MSTHnPDFNeutrino(component.name.GetString());
-          pdf_->SetPDFType(pdfType);
-          THn *hn = nullptr;
-          if (component.value.HasMember("oscillation"))
-          {
-            pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
-          }
-          hn = internalHandler.LoadHist(pathToFile.Data(),
-                                        component.value["pdf"][1].GetString(),
-                                        component.name.GetString(), true);
-          if (has_nadir)
-          {
-            printf("factorizing nadir pdf for %s\n", component.name.GetString());
-            if (hnNadirHP == nullptr)
+          case kComponent:
             {
-              hnNadirHP = pdfBuilder->BuildNadirPDF(1);  
+              MSTHnPDFComponent *pdf_ = new MSTHnPDFComponent(component.name.GetString());
+              pdf_->SetPDFType(pdfType);
+              THn *hn = nullptr;
+
+              if (component.value.HasMember("responseMatrix"))
+              {
+                hn = handler.LoadHist(pathToFile.Data(),
+                    component.value["pdf"][1].GetString(),
+                    component.name.GetString(), true);
+                pdf_->SetRespMatrix(pdfBuilder->GetResponseMatrix(component.value["responseMatrix"].GetString()));
+              }
+              else
+              {
+                hn = handler.LoadHist(pathToFile.Data(),
+                    component.value["pdf"][1].GetString(),
+                    component.name.GetString(),
+                    true);
+              }
+
+              if (has_nadir)
+              {
+                printf("factorizing nadir pdf for %s\n", component.name.GetString());
+                THn *hn_tmp = handler.FactorizeTHn(hn, hnNadir);
+                MSTHnHandler::NormalizeHn(hn_tmp);
+                delete hn;
+                hn = hn_tmp;
+              }
+              pdf_->SetTHn(hn);
+
+              pdf = pdf_;
+              break;
             }
 
-            THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadirHP);
-            MSTHnHandler::NormalizeHn(hn_tmp);
-            delete hn;
-            hn = hn_tmp;
-          }
-          pdf_->SetTHn(hn);
+          case kNeutrino:
+            {
+              MSTHnPDFNeutrino *pdf_ = new MSTHnPDFNeutrino(component.name.GetString());
+              pdf_->SetPDFType(pdfType);
+              THn *hn = nullptr;
+              if (component.value.HasMember("oscillation"))
+              {
+                pdf_->SetApplyOscillation(component.value["oscillation"].GetBool());
+              }
+              hn = internalHandler.LoadHist(pathToFile.Data(),
+                  component.value["pdf"][1].GetString(),
+                  component.name.GetString(), true);
+              if (has_nadir)
+              {
+                printf("factorizing nadir pdf for %s\n", component.name.GetString());
+                if (hnNadirHP == nullptr)
+                {
+                  hnNadirHP = pdfBuilder->BuildNadirPDF(1);  
+                }
 
-          for (const auto &jchannel : component.value["channels"].GetObject())
-          {
-            const string channelName = jchannel.name.GetString();
-            const string respMatrixName = jchannel.value["responseMatrix"].GetString();
-            const string neutrino_str = jchannel.value["crossSection"]["source"]["neutrino"].GetString();
-            const int neutrino_pdg = std::stoi(neutrino_str);
-            MSTHnPDFNeutrino::NuIntChannel_t &channel =
-                pdf_->AddChannel(channelName,
-                                 neutrino_pdg,
-                                 respMatrixName);
+                THn *hn_tmp = internalHandler.FactorizeTHn(hn, hnNadirHP);
+                MSTHnHandler::NormalizeHn(hn_tmp);
+                delete hn;
+                hn = hn_tmp;
+              }
+              pdf_->SetTHn(hn);
 
-            const rapidjson::Value &jcrossSection = jchannel.value["crossSection"];
-            const std::string gen_config = BuildMARLEYGeneratorConfig(jcrossSection, json["MC"]["seed"].GetInt());
-            pdfBuilder->SetupMarleyGenerator(channelName, gen_config);
+              for (const auto &jchannel : component.value["channels"].GetObject())
+              {
+                const string channelName = jchannel.name.GetString();
+                const string respMatrixName = jchannel.value["responseMatrix"].GetString();
+                const string neutrino_str = jchannel.value["crossSection"]["source"]["neutrino"].GetString();
+                const int neutrino_pdg = std::stoi(neutrino_str);
+                MSTHnPDFNeutrino::NuIntChannel_t &channel =
+                  pdf_->AddChannel(channelName,
+                      neutrino_pdg,
+                      respMatrixName);
 
-            pdfBuilder->EvaluateTotalCrossSection(channelName, pdf_);
-            pdf = pdf_;
-          }
+                const rapidjson::Value &jcrossSection = jchannel.value["crossSection"];
+                const std::string gen_config = BuildMARLEYGeneratorConfig(jcrossSection, json["MC"]["seed"].GetInt());
+                pdfBuilder->SetupMarleyGenerator(channelName, gen_config);
 
-          break;
-        }
+                pdfBuilder->EvaluateTotalCrossSection(channelName, pdf_);
+                pdf = pdf_;
+              }
 
-        case kUndefined:
-        {
-          std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf type undefined\n";
-          exit(EXIT_FAILURE);
-        }
+              break;
+            }
 
-        default:
-        {
-          std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf not set\n";
-          exit(EXIT_FAILURE);
-        }
+          case kUndefined:
+            {
+              std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf type undefined\n";
+              exit(EXIT_FAILURE);
+            }
+
+          default:
+            {
+              std::cerr << "ERROR setting component " << component.name.GetString() << ": pdf not set\n";
+              exit(EXIT_FAILURE);
+            }
         }
 
         pdfBuilder->RegisterPDF(pdf);
@@ -709,7 +733,7 @@ namespace mst
           MSModelPullGaus *mod = new MSModelPullGaus(pull.name.GetString());
           mod->SetPullPar(pull.name.GetString());
           mod->SetGaussPar(pull.value["centroid"].GetDouble(),
-                           pull.value["sigma"].GetDouble());
+              pull.value["sigma"].GetDouble());
           fitter->AddModel(mod);
           // initialize and add exponential pulls
         }
@@ -718,7 +742,7 @@ namespace mst
           MSModelPullExp *mod = new MSModelPullExp(pull.name.GetString());
           mod->SetPullPar(pull.name.GetString());
           mod->SetExpPar(pull.value["limit"].GetDouble(),
-                         pull.value["quantile"].GetDouble());
+              pull.value["quantile"].GetDouble());
           fitter->AddModel(mod);
         }
         else
@@ -731,7 +755,10 @@ namespace mst
 
     // Sync the parameters. This call is needed to finilize the initializatoin of
     // the minimizer
-    fitter->SyncFitParameters();
+    for (size_t iengine = 0; iengine < fitter->GetMinimizers().size(); iengine++)
+    {
+      fitter->SyncFitParameters(iengine);
+    }
     return fitter;
   }
 
@@ -846,15 +873,13 @@ namespace mst
   {
 
     // Take Minuit calls from config file in the proper order
-    for (const auto &step : json["MinimizerSteps"].GetObject())
+    int iengine = 0;
+    for (const auto &step : json["Minimizer"].GetArray())
     {
-      fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
-      std::cout << "info: minimization step " << step.name.GetString() << " started\n";
-      fitter->Minimize(step.value["method"].GetString(),
-                       step.value["resetMinuit"].GetBool(),
-                       step.value["maxCall"].GetDouble(),
-                       step.value["tolerance"].GetDouble());
-      std::cout << "info: minimization step " << step.name.GetString() << " completed\n";
+      std::cout << "info: minimization step " << iengine << " started\n";
+      fitter->Minimize(iengine, step["resetMinuit"].GetBool());
+      std::cout << "info: minimization step " << iengine << " completed\n";
+      iengine++;
     }
 
     if (fitter->GetMinuitStatus())
@@ -1049,13 +1074,11 @@ namespace mst
         return false;
       poi->FixTo(tVal);
 
+      int iengine = 0;
       for (const auto &step : json["MinimizerSteps"].GetObject())
       {
-        fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
-        fitter->Minimize(step.value["method"].GetString(),
-                         step.value["resetMinuit"].GetBool(),
-                         step.value["maxCall"].GetDouble(),
-                         step.value["tolerance"].GetDouble());
+        fitter->Minimize(iengine, step.value["resetMinuit"].GetBool());
+        iengine++;
       }
 
       // extract temporary best fit value
@@ -1192,38 +1215,35 @@ namespace mst
          int i1 = hpll->GetXaxis()->FindBin(t1Val);
          int i2 = hpll->GetYaxis()->FindBin(t2Val);
 
-      for (const auto &step : json["MinimizerSteps"].GetObject())
-      {
-        fitter->SetMinuitVerbosity(step.value["verbosity"].GetInt());
-        fitter->Minimize(step.value["method"].GetString(),
-                         //step.value["resetMinuit"].GetBool(),
-                         false,
-                         step.value["maxCall"].GetDouble(),
-                         step.value["tolerance"].GetDouble());
-      }
+         int iengine = 0;
+         for (const auto &step : json["Minimizer"].GetArray())
+         {
+           fitter->Minimize(iengine, false);
+           iengine++;
+         }
 
          double tmpMinNLL = fitter->GetMinNLL();
-      hpll->SetBinContent(i1, i2, tmpMinNLL);
-      // update absolute minimum if needed
-      if (tmpMinNLL < absMinNLL)
-        absMinNLL = tmpMinNLL;
+         hpll->SetBinContent(i1, i2, tmpMinNLL);
+         // update absolute minimum if needed
+         if (tmpMinNLL < absMinNLL)
+           absMinNLL = tmpMinNLL;
 
-      // check the status of minuit
-      if (fitter->GetMinuitStatus())
-      {
-        std::cerr << "Profile2D >> error: minuit returned failed status ["
-                  << fitter->GetMinuitStatus() << "]"
-                  << " while fitting with " << parName1.data()
-                  << " fixed to " << t1Val
-                  << " and " << parName2.data()
-                  << " fixed to " << t2Val << std::endl;
-      }
-      // chek if the exit conditions are met
-      if (tmpMinNLL - absMinNLL <= NLL)
-        return true;
-      else
-        return false;
-    };
+         // check the status of minuit
+         if (fitter->GetMinuitStatus())
+         {
+           std::cerr << "Profile2D >> error: minuit returned failed status ["
+             << fitter->GetMinuitStatus() << "]"
+             << " while fitting with " << parName1.data()
+             << " fixed to " << t1Val
+             << " and " << parName2.data()
+             << " fixed to " << t2Val << std::endl;
+         }
+         // chek if the exit conditions are met
+         if (tmpMinNLL - absMinNLL <= NLL)
+           return true;
+         else
+           return false;
+      };
 
       // Find center bin
       int centerBinX = hpll->GetXaxis()->FindBin(poi1->GetFitBestValue());
@@ -1314,12 +1334,13 @@ namespace mst
    * @param parName1 name of parameter 1
    * @param parName2 name of parameter 2
    * @param contour level
-   * @param nPoints number of points
    * @return contour TGraph object
    */
   inline TGraph *GetContour(MSMinimizer *fitter,
-                            const string &parName1, const string &parName2, const double nsigma,
-                            const int nPoints)
+                            const string &parName1,
+                            const string &parName2, 
+                            const double level
+                            )
   {
     // retrieve parameters of interest (poi) from the fitter
     mst::MSParameter *poi1 = fitter->GetParameter(parName1.c_str());
@@ -1353,12 +1374,16 @@ namespace mst
     }
 
     TGraph *gContour = nullptr;
-    TMinuit *minuit = fitter->GetMinuit();
+    auto& minimizer = fitter->GetMinimizers().back().fMinimizer;
 
-    minuit->SetErrorDef(nsigma * nsigma);
-    gContour = static_cast<TGraph *>(minuit->Contour(nPoints, ipar1, ipar2));
+    minimizer->SetErrorDef(level);
+    double* x; 
+    double* y;
+    UInt_t nPoints = 0;
+    minimizer->Contour(ipar1, ipar2, nPoints, x, y); 
+    gContour = new TGraph(nPoints, x, y);
+    minimizer->SetErrorDef(fitter->GetMinimizers().back().fMinimizerOptions.ErrorDef());
 
-    minuit->SetErrorDef(0.5);
     return gContour;
   }
 
@@ -1430,14 +1455,13 @@ namespace mst
         cc->cd(iwindow);
 
         int isigma = 0;
-        for (const auto &jsigma : pair["nsigma"].GetArray())
+        for (const auto &jlevel : pair["level"].GetArray())
         {
           TGraph *tmp = GetContour(fitter,
                                    pair["par1"].GetString(),
                                    pair["par2"].GetString(),
-                                   jsigma.GetDouble(),
-                                   pair["nPoints"].GetInt());
-          tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jsigma.GetDouble()));
+                                   jlevel.GetDouble() );
+          tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jlevel.GetDouble()));
           const TString opt = isigma == 0 ? "apl" : "pl";
           tmp->Draw(opt);
         }
