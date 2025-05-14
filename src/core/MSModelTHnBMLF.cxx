@@ -21,7 +21,7 @@
 namespace mst
 {
 
-   double MSModelTHnBMLF::NLogLikelihood(double *par, NeutrinoPropagator *propagator)
+   double MSModelTHnBMLF::NLogLikelihood(const double *par, NeutrinoPropagator *propagator)
    {
       fPDFBuilder->ResetPDF();
 
@@ -34,7 +34,6 @@ namespace mst
             continue;
          const double par_value = GetMinuitParameter(par, parName);
          const double count_rate = fPDFBuilder->AddHistToPDF(parName, par_value, propagator);
-         //printf("parName = %s, par_cts = %f, count_rate = %f\n", parName.c_str(), par_value, count_rate);
       }
       //getchar();
       // for (const auto& par_itr : *fParameters) {

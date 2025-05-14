@@ -87,7 +87,7 @@ class MSModel : public MSObject
       //! Get index of a parameter (use names without local/global prefix)
       unsigned int GetParameterIndex(const std::string& localName) const;
       //! Get parameter value from Minuit array (use names without local/global prefix)
-       double GetMinuitParameter(double* par, const std::string& localName) const {
+       double GetMinuitParameter(const double* par, const std::string& localName) const {
           return par[GetParameterIndex(localName)];
        }
 
@@ -99,7 +99,7 @@ class MSModel : public MSObject
       virtual void InitializeParameters() {}
 
       //! Virtual function returning the NLogLikelihood function
-      virtual double NLogLikelihood(double* parameters, NeutrinoPropagator* propagator = nullptr) = 0;
+      virtual double NLogLikelihood(const double* parameters, NeutrinoPropagator* propagator = nullptr) = 0;
 
     //
     // Parameters of interest for the model
@@ -142,7 +142,7 @@ class MSModelT: public MSModel {
       virtual ~MSModelT() { delete fDataSet; delete fPDFBuilder;}
 
       //! Virtual function from MSModel to be overloaded in the concrete class
-      virtual double NLogLikelihood(double* par, NeutrinoPropagator* propagator = nullptr) override = 0;
+      virtual double NLogLikelihood(const double* par, NeutrinoPropagator* propagator = nullptr) override = 0;
 
       //! Set data set and delete the one previsouly set
       void SetDataSet(TData* dataSet) { delete fDataSet; fDataSet = dataSet; }

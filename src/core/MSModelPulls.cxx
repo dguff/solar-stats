@@ -21,14 +21,14 @@
 
 namespace mst {
 
-double MSModelPullGaus::NLogLikelihood(double* par, NeutrinoPropagator* propagator)
+double MSModelPullGaus::NLogLikelihood(const double* par, NeutrinoPropagator* propagator)
 {
    const double x = GetMinuitParameter(par, fPullPar.c_str());
    return  (-mst::MSMath::LogGaus(x, fCentroid, fSigma));
 }
 
 
-double MSModelPullExp::NLogLikelihood(double* par, NeutrinoPropagator* propagator)
+double MSModelPullExp::NLogLikelihood(const double* par, NeutrinoPropagator* propagator)
 {
    const double x = GetMinuitParameter(par, fPullPar.c_str());
    return  (-mst::MSMath::LogExp(x,fLimit, fQuantile, fOffset));
