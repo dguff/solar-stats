@@ -32,6 +32,28 @@ MSParameter::~MSParameter()
 {
 }
 
+MSParameter::MSParameter(const MSParameter& par): MSObject(par)
+{
+   fParameterType = par.fParameterType;
+   fVariableType = par.fVariableType;
+   fFixed = par.fFixed;
+   fGlobal = par.fGlobal;
+   fRangeMinSet = par.fRangeMinSet;
+   fRangeMaxSet = par.fRangeMaxSet;
+   fRangeMin = par.fRangeMin;
+   fRangeMax = par.fRangeMax;
+   fFitStartValue = par.fFitStartValue;
+   fFitStartValueSet = par.fFitStartValueSet;
+   fFitStartValueDefault = par.fFitStartValueDefault;
+   fFitStartValueSetDefault = par.fFitStartValueSetDefault;
+   fFitStartStep = par.fFitStartStep;
+
+   fFitBestValue     = par.fFitBestValue;
+   fFitBestValueErr  = par.fFitBestValueErr;
+   fFitLowerLimit    = par.fFitLowerLimit;
+   fFitUpperLimit    = par.fFitUpperLimit;
+}
+
 void MSParameter::PrintSummary() const
 {
    std::ostringstream os;

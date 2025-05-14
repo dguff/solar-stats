@@ -56,6 +56,8 @@ namespace mst {
 
       //! Constructor
       MSParameter(const std::string& name = "");
+      //! Copy constructor
+      MSParameter(const MSParameter& par);
       //! Destructor
       virtual ~MSParameter();
 
