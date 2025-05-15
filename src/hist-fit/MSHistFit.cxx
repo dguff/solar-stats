@@ -1339,7 +1339,8 @@ namespace mst
   inline TGraph *GetContour(MSMinimizer *fitter,
                             const string &parName1,
                             const string &parName2, 
-                            const double level
+                            const double level,
+                            const int nPts
                             )
   {
     // retrieve parameters of interest (poi) from the fitter
@@ -1377,9 +1378,9 @@ namespace mst
     auto& minimizer = fitter->GetMinimizers().back().fMinimizer;
 
     minimizer->SetErrorDef(level);
-    double* x; 
-    double* y;
-    UInt_t nPoints = 0;
+    double x[nPts]; 
+    double y[nPts];
+    UInt_t nPoints = nPts;
     minimizer->Contour(ipar1, ipar2, nPoints, x, y); 
     gContour = new TGraph(nPoints, x, y);
     minimizer->SetErrorDef(fitter->GetMinimizers().back().fMinimizerOptions.ErrorDef());
@@ -1455,12 +1456,16 @@ namespace mst
         cc->cd(iwindow);
 
         int isigma = 0;
-        for (const auto &jlevel : pair["level"].GetArray())
+
+        int npoints = (pair.HasMember("npoints")) ? pair["npoints"].GetInt() : 100;
+
+        for (const auto &jlevel : pair["level"].GetArray()) 
         {
           TGraph *tmp = GetContour(fitter,
                                    pair["par1"].GetString(),
                                    pair["par2"].GetString(),
-                                   jlevel.GetDouble() );
+                                   jlevel.GetDouble(),
+                                   npoints);
           tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jlevel.GetDouble()));
           const TString opt = isigma == 0 ? "apl" : "pl";
           tmp->Draw(opt);
