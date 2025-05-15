@@ -79,6 +79,13 @@ class MSMinimizer : public MSObject
           (idm21 > 0) ? dm21 = par[idm21] : dm21 = 0.0;
           (idm32 > 0) ? dm32 = par[idm32] : dm32 = 0.0;
         }
+
+        //! Print propagator parameters: 
+        void PrintParameters() const {
+          printf("MSMinimizer::PrintParameters: \n");
+          printf("x12: %f, x13: %f, x23: %f, dcp: %f, dm21: %f, dm32: %f\n",
+              x12, x13, x23, dcp, dm21, dm32);
+        }
       }; 
 
       struct MSMinimizerEngine_t {
@@ -195,6 +202,9 @@ class MSMinimizer : public MSObject
    private:
       //! Global pointer for using FCNNLLLikelihood as Minuit FCN
       static MSMinimizer* global_pointer;
+
+      //! Current minimizer running
+      int fCurrentMinimizer {0};
 
       //! Pointer to the model
       MSModelVector* fModelVector {nullptr};

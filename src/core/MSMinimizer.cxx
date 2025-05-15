@@ -18,6 +18,7 @@
 #include <TString.h>
 #include "Math/Functor.h"
 #include "Math/Factory.h"
+#include "Fit/ParameterSettings.h"
 
 // m-stats libs
 #include "MSMinimizer.h"
@@ -42,9 +43,6 @@ MSMinimizer::MSMinimizer(const std::string& name) : MSObject(name)
 
 MSMinimizer::~MSMinimizer()
 {
-  printf("calling MSMinimizer destructor\n");
-  getchar(); 
-  
    if (fModelVector) {
       for (auto& i : *fModelVector) delete i;
       delete fModelVector;
@@ -93,7 +91,6 @@ void MSMinimizer::SetupMiminizerOptions(const rapidjson::Value& jopts)
       printf("MSMinimizer::SetupMiminizerOptions() Minimizer options %ld created with the following options:\n", fMinimizers.size());
       engine.fMinimizerOptions.Print();
     }
-    getchar();
    }
  
    return;
@@ -166,9 +163,12 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
    // Check whether minuit has been last sync against this minimizer
    // and define value of global pointer
    bool forceUpdateAll = false;
-   if (global_pointer != this) {
-      forceUpdateAll = true;
-      global_pointer = this;
+   //if (global_pointer != this) {
+      //forceUpdateAll = true;
+      //global_pointer = this;
+   //}
+   if (iengine != fCurrentMinimizer) {
+     forceUpdateAll = true;
    }
 
    // Initialize minuit if not done manually
@@ -205,8 +205,6 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
                                       << "] \"" << gIt->first << "\""
                                       << " -> fixed"
                                       << std::endl;
-            //fMinimizerArglist[0] = d+1;
-            //fMinimizer->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
             fMinimizer->FixVariable(d);
          }
 
@@ -275,6 +273,24 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
       }
    }
 
+   // Print current variables settings
+/*
+ *   int ipar = 0;
+ *   printf("Minimizer %i initial state:\n", iengine);
+ *   for (const auto& param : *fGlobalParMap) {
+ *    ROOT::Fit::ParameterSettings settings;
+ *    fMinimizer->GetVariableSettings(ipar, settings);
+ *    printf("par[%s] index: %i, value: %f, step: %f, min: %f, max: %f, fixed: %i\n",
+ *           param.first.c_str(), ipar,
+ *           settings.Value(), settings.StepSize(),
+ *           settings.LowerLimit(), settings.UpperLimit(),
+ *           settings.IsFixed());
+ *    ipar++;
+ *   }
+ *
+ *   getchar();
+ *
+ */
    // Clear and Make local copy of the gloabal parameter map
    for (MSParameterMap::iterator it = fLocalParMap->begin();
          it != fLocalParMap->end(); ++it)
@@ -295,17 +311,38 @@ void MSMinimizer::Minimize(const int iengine, bool resetFitStartValue) {
    //fMinimizer->mnexcm(minimizer.c_str(), fMinuitArglist, 2, fMinuitErrorFlag);
    auto& fMinimizer = fMinimizers.at(iengine).fMinimizer;
    fMinimizer->Minimize();
+   fCurrentMinimizer = iengine;
+
 
    if (GetMinuitStatus()) fNMinuitFails++;
 
    // Retrive fit results from minuit and store info
    MSParameterMap::const_iterator gIt0 = fGlobalParMap->begin();
    for (MSParameterMap::const_iterator gIt = fGlobalParMap->begin();
-         gIt != fGlobalParMap->end(); ++gIt) {
-      int d = distance(gIt0, gIt);
-      gIt->second->SetFitBestValue( fMinimizer->X()[d] );
-      gIt->second->SetFitBestValueErr( fMinimizer->Errors()[d] );
+       gIt != fGlobalParMap->end(); ++gIt) {
+     int d = distance(gIt0, gIt);
+     gIt->second->SetFitBestValue( fMinimizer->X()[d] );
+     gIt->second->SetFitBestValueErr( fMinimizer->Errors()[d] );
+
+     // update oscillation parameters in the propagator
+     if (gIt->second->IsOscillation() == false) continue;
+
+     TString parName = gIt->first;
+     if ( parName.Contains("Theta12") ) {
+       fPropagatorInputs.x12 = gIt->second->GetFitBestValue();
+     } else if ( parName.Contains("Theta13")) {
+       fPropagatorInputs.x13 = gIt->second->GetFitBestValue();
+     } else if ( parName.Contains("Theta23") ) {
+       fPropagatorInputs.x23 = gIt->second->GetFitBestValue();
+     } else if ( parName.Contains("deltaCP") ) {
+       fPropagatorInputs.dcp = gIt->second->GetFitBestValue();
+     } else if ( parName.Contains("dm21")  ) {
+       fPropagatorInputs.dm21 = gIt->second->GetFitBestValue();
+     } else if ( parName.Contains("dm32") ) {
+       fPropagatorInputs.dm32 = gIt->second->GetFitBestValue();
+     }
    }
+   UpdateOscillationParameters();
 
    // Retrive info about the status of the minimation
    double errdef;
@@ -315,27 +352,7 @@ void MSMinimizer::Minimize(const int iengine, bool resetFitStartValue) {
    fEDM = fMinimizer->Edm();
    fCovQual = fMinimizer->CovMatrixStatus();
 
-   // update oscillation parameters in the propagator
-   for (const auto& par : *fGlobalParMap) {
-     if (par.second->IsOscillation() == false) continue;
-
-     TString parName = par.first;
-     if ( parName.Contains("Theta12") ) {
-       fPropagatorInputs.x12 = par.second->GetFitBestValue();
-     } else if ( parName.Contains("Theta13")) {
-       fPropagatorInputs.x13 = par.second->GetFitBestValue();
-     } else if ( parName.Contains("Theta23") ) {
-       fPropagatorInputs.x23 = par.second->GetFitBestValue();
-     } else if ( parName.Contains("deltaCP") ) {
-       fPropagatorInputs.dcp = par.second->GetFitBestValue();
-     } else if ( parName.Contains("dm21")  ) {
-       fPropagatorInputs.dm21 = par.second->GetFitBestValue();
-     } else if ( parName.Contains("dm32") ) {
-       fPropagatorInputs.dm32 = par.second->GetFitBestValue();
-     }
-   }
   
-   UpdateOscillationParameters();
 }
 
 double MSMinimizer::FCNNLLLikelihood(const double* par)
@@ -347,15 +364,16 @@ double MSMinimizer::FCNNLLLikelihood(const double* par)
    NeutrinoPropagator* propagator = global_pointer->fNeutrinoPropagator;
    PropagatorInputs_t& propagator_inputs = global_pointer->fPropagatorInputs;
 
-   for (const auto& pp : *fGlobalParMap) {
-     printf("par[%s] index: %i, value: %f\n", pp.first.c_str(),
-        pp.second->GetIndex(),
-        par[pp.second->GetIndex()]);
-   }
-
+/*
+ *   UInt_t ipar = 0;
+ *   for (const auto& pp : *fGlobalParMap) {
+ *     printf("par[%s] index: %i, value: %f\n", pp.first.c_str(), ipar, par[ipar]);
+ *     ipar++;
+ *   }
+ *
+ */
    propagator_inputs.SetParameters( par );
 
-   getchar();
 
    propagator->SetMNS(propagator_inputs.x12, propagator_inputs.x13,
                       propagator_inputs.x23, 
