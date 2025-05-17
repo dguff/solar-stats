@@ -664,6 +664,14 @@ namespace mst
                 delete hn;
                 hn = hn_tmp;
               }
+
+              // get rebin target axis 
+              std::vector<int> rebin_target_axis;
+              for (int i=0; i < hn->GetNdimensions(); i++) rebin_target_axis.push_back(i);
+              int rg = 0;
+              THn* hnrb = internalHandler.RebinHist(hn, rebin_target_axis, internalHandler.GetAxes(), &rg);
+              delete hn;
+              hn = hnrb;
               pdf_->SetTHn(hn);
 
               for (const auto &jchannel : component.value["channels"].GetObject())
@@ -1455,10 +1463,10 @@ namespace mst
       {
         cc->cd(iwindow);
 
-        int isigma = 0;
 
         int npoints = (pair.HasMember("npoints")) ? pair["npoints"].GetInt() : 100;
 
+        int ilevel = 0;
         for (const auto &jlevel : pair["level"].GetArray()) 
         {
           TGraph *tmp = GetContour(fitter,
@@ -1467,8 +1475,12 @@ namespace mst
                                    jlevel.GetDouble(),
                                    npoints);
           tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jlevel.GetDouble()));
-          const TString opt = isigma == 0 ? "apl" : "pl";
+          const TString opt = (ilevel == 0) ? "apl" : "pl";
+          printf("Drawing %s with option %s\n", tmp->GetName(), opt.Data());
           tmp->Draw(opt);
+          gPad->Modified();
+          gPad->Update();
+          ilevel++;
         }
         iwindow++;
       }
