@@ -855,8 +855,8 @@ namespace mst
         const double trueVal = json["fittingModel"]["dataSets"][mod->GetName().c_str()]
                                    ["components"][parName.c_str()]["injVal"]
                                        .GetDouble();
-        printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n",
-            parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
+        //printf("calling AddHistToPDF with par=%s, trueVal=%f and passing propagator %p\n",
+            //parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         double count_rate = 0.0;
         if (pdfBuilder->IsNeutrino(parName))
         {
@@ -864,20 +864,19 @@ namespace mst
           const auto &channels = pdf->GetChannels();
           for (const auto &channel : channels)
           {
-            printf("\tadding channel %s\n", channel.fName.data());
-                  // printf("\tadding channel %s\n", channel.fName.data());
+            //printf("\tadding channel %s\n", channel.fName.data());
             double channel_rate = 0.0;
             channel_rate = pdfBuilder->AddHistToPDF(parName.c_str(),
                                                     channel.fName.data(), trueVal, fitter->GetNeutrinoPropagator());
             count_rate += channel_rate;
-            printf("\tchannel rate: %f\n", channel_rate);
+            //printf("\tchannel rate: %f\n", channel_rate);
           }
         }
         else
         {
           count_rate = pdfBuilder->AddHistToPDF(parName.c_str(), trueVal, fitter->GetNeutrinoPropagator());
         }
-        printf("count_rate = %f -> total counts: %g\n", count_rate, count_rate * mod->GetExposure());
+        //printf("count_rate = %f -> total counts: %g\n", count_rate, count_rate * mod->GetExposure());
         totalCounts += count_rate * mod->GetExposure();
       }
       // register new data set. The previous one is delete inside the model
