@@ -281,6 +281,7 @@ namespace mst
         isMemberCorrect(pull.value, "type", "String");     // json/pulls/*/type
         isMemberCorrect(pull.value, "centroid", "Number"); // json/pulls/*/centroid
         isMemberCorrect(pull.value, "sigma", "Number");    // json/pulls/*/sigma
+        isMemberCorrect(pull.value, "randomize", "Bool"); // json/pulls/*/randomize
       } //
     }
     if (json["fittingModel"].HasMember("oscillation"))
@@ -733,6 +734,11 @@ namespace mst
     // FIXME: check if pull are present
     if (json["fittingModel"].HasMember("pulls"))
     {
+      if (json["MC"].HasMember("seed")) 
+        gRandom->SetSeed(json["MC"]["seed"].GetInt());
+      else 
+        gRandom->SetSeed(0);
+
       for (const auto &pull : json["fittingModel"]["pulls"].GetObject())
       {
         // initialize and add gaussian pulls
@@ -742,6 +748,7 @@ namespace mst
           mod->SetPullPar(pull.name.GetString());
           mod->SetGaussPar(pull.value["centroid"].GetDouble(),
               pull.value["sigma"].GetDouble());
+          mod->EnablePullRandomization(pull.value["randomize"].GetBool());
           fitter->AddModel(mod);
           // initialize and add exponential pulls
         }
@@ -811,6 +818,16 @@ namespace mst
         }
       }
       fitter->UpdateOscillationParameters();
+    }
+
+    // Lopp over the pulls to update the values if they are not fixed
+    for (const auto& model : *fitter->GetModels())
+    {
+      const auto pull = dynamic_cast<MSModelPullGaus*>(model);
+      if (pull != nullptr)
+      {
+        pull->UpdatePull();
+      }
     }
 
     // loop over the models and create a new data set for each of them

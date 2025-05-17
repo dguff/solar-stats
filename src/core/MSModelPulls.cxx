@@ -24,7 +24,7 @@ namespace mst {
 double MSModelPullGaus::NLogLikelihood(const double* par, NeutrinoPropagator* propagator)
 {
    const double x = GetMinuitParameter(par, fPullPar.c_str());
-   return  (-mst::MSMath::LogGaus(x, fCentroid, fSigma));
+   return  (-mst::MSMath::LogGaus(x, fCentroidTmp, fSigma));
 }
 
 

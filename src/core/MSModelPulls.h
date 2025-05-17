@@ -29,6 +29,8 @@
 #ifndef MST_MSModelPullGaus_H
 #define MST_MSModelPullGaus_H
 
+#include "TRandom3.h"
+
 // m-stats libs
 #include "MSModel.h"
 
@@ -45,6 +47,15 @@ class MSModelPull : public mst::MSModel
       //! Destructor
       virtual ~MSModelPull() {}
 
+      //! Enable pull randomization
+      inline void EnablePullRandomization(const bool randomize) { fPullRandomization = randomize; }
+
+      //! Get pull randomization
+      inline bool IsPullRandomized() const { return fPullRandomization; }
+
+      //! Update the pull value for the experiment in progress 
+      inline virtual void UpdatePull() = 0;
+
       //! function returning the negative log likelihood function to be 
       //! minimized (NLL)
       double NLogLikelihood(const double* par, NeutrinoPropagator* propagator) override = 0;
@@ -56,6 +67,7 @@ class MSModelPull : public mst::MSModel
 
    public:
       std::string fPullPar {""};
+      bool fPullRandomization {false};
 };
 
 class MSModelPullGaus : public mst::MSModelPull
@@ -70,6 +82,14 @@ class MSModelPullGaus : public mst::MSModelPull
       //! minimized (NLL)
       double NLogLikelihood(const double* par, NeutrinoPropagator* propagator) override;
 
+      inline void UpdatePull() override {
+         if (fPullRandomization) {
+            fCentroidTmp = gRandom->Gaus(fCentroid, fSigma);
+         } else {
+            fCentroidTmp = fCentroid;
+         }
+      }
+
       //! Set centroid
       void SetCentroid (double centroid) {fCentroid = centroid;}
       //! Set sigma
@@ -83,6 +103,7 @@ class MSModelPullGaus : public mst::MSModelPull
    public:
       double fCentroid {0.0};
       double fSigma {0.0};
+      double fCentroidTmp {0.0};
 };
 
 class MSModelPullExp : public mst::MSModelPull
@@ -92,6 +113,9 @@ class MSModelPullExp : public mst::MSModelPull
       MSModelPullExp(const std::string& name = ""): MSModelPull(name) {}
       //! Destructor
       virtual ~MSModelPullExp() {}
+
+      //! Update pull FIXME: to be implemented
+      void UpdatePull() override {}
 
       //! function returning the negative log likelihood function to be 
       //! minimized (NLL)
