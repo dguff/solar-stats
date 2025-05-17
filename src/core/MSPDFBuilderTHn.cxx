@@ -207,11 +207,12 @@ namespace mst
 
 /*
  *        TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
- *        TCanvas *c = new TCanvas("c", "c", 1200, 600);
+ *        TCanvas *c = new TCanvas("c", "c", 1800, 600);
  *
  *        TH1* hog = nullptr; TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
  *        if (fOscillogram->GetNdimensions() == 1) 
  *        {
+ *          hog = im->second->GetTHn()->Projection(0);
  *          hsurv = fOscillogram->Projection(0);
  *          hosc = hn_osc->Projection(0);
  *          hoscxs = hn_osc_xs->Projection(0);
@@ -219,10 +220,10 @@ namespace mst
  *        }
  *        else 
  *        {
- *          hsurv = fOscillogram->Projection(1,0); TString nt = pdf->GetName().data(); hsurv->SetNameTitle(nt,nt);
- *          hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
- *          hog = pdf->GetTHn()->Projection(1,0); nt = pdf->GetName().data(); hog->SetNameTitle(nt,nt);
+ *          hog = pdf->GetTHn()->Projection(1,0); TString nt = pdf->GetName().data(); hog->SetNameTitle(nt,nt);
  *          hog->SetEntries(hog->GetNbinsX() * hog->GetNbinsY());
+ *          hsurv = fOscillogram->Projection(1,0); nt = pdf->GetName().data(); hsurv->SetNameTitle(nt,nt);
+ *          hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
  *          hosc = hn_osc->Projection(1,0); nt = Form("%s_osc", pdf->GetName().data()); hosc->SetNameTitle(nt,nt);
  *          hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
  *          hoscxs = hn_osc_xs->Projection(1,0); nt = Form("%s_oscxs", pdf->GetName().data()); hoscxs->SetNameTitle(nt,nt);
@@ -230,16 +231,18 @@ namespace mst
  *          hrecosc = hn->Projection(1,0,"A"); nt = Form("%s_recosc", pdf->GetName().data()); hrecosc->SetNameTitle(nt,nt);
  *          hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
  *        }
- *        c->Divide(4, 1);
- *        c->cd(1); hsurv->Draw("colz");
+ *        c->Divide(5, 1);
+ *        c->cd(1); hog->Draw("colz");
  *        gPad->Update();
- *        c->cd(2); hosc->Draw("colz");
+ *        c->cd(2); hsurv->Draw("colz");
+ *        gPad->Update();
+ *        c->cd(3); hosc->Draw("colz");
  *        gPad->Update();
  *        printf("hosc integral = %f\n", hosc->Integral());
- *        c->cd(3); hoscxs->Draw("colz"); 
+ *        c->cd(4); hoscxs->Draw("colz"); 
  *        printf("hoscxs integral = %f\n", hoscxs->Integral());
  *        gPad->Update();
- *        c->cd(4); hrecosc->Draw("colz");
+ *        c->cd(5); hrecosc->Draw("colz");
  *        gPad->Update();
  *        printf("hrecosc integral = %f\n", hrecosc->Integral());
  *
@@ -386,63 +389,50 @@ namespace mst
       //const double exposure = 1e4;
       //printf("hn integral = %f\n", MSTHnHandler::Integral(hn));
 
-      //TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
-      //TCanvas *c = new TCanvas("c", "c", 1600, 900);
-      //TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
-      //if (fOscillogram->GetNdimensions() == 1) 
-      //{
-        //hsurv = fOscillogram->Projection(0);
-        //hosc = hn_osc->Projection(0);
-        //hoscxs = hn_osc_xs->Projection(0);
-        //hrecosc = hn->Projection(0);
-      //}
-      //else 
-      //{
-        //hsurv = fTmpPDF->Projection(1,0); 
-        //hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
-        //hosc = hn_osc->Projection(1,0); 
-        //hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
-        //hoscxs = hn_osc_xs->Projection(1,0);
-        //hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
-        //hrecosc = hn->Projection(1,0,"A"); 
-        //hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
-      //}
-      //c->Divide(4, 1);
-      //c->cd(1); hsurv->Draw("colz");
-      //gPad->Update();
-      //c->cd(2); hosc->Draw("colz");
-      //gPad->Update();
-      //printf("hosc integral = %f\n", hosc->Integral());
-      //c->cd(3); hoscxs->Draw("colz");
-      //gPad->Update();
-      //c->cd(4); hrecosc->Draw("colz");
-      //gPad->Update();
-      //printf("hrecosc integral = %f\n", hrecosc->Integral());
-
-      //c->Divide(3, 1);
-      //c->cd(1);
-      //TH2D *h2_surv = fOscillogram->Projection(1, 0);
-      //h2_surv->SetEntries(h2_surv->GetNbinsX() * h2_surv->GetNbinsY());
-      //h2_surv->Draw("colz");
-      //gPad->Update();
-      //c->cd(2);
-      //TH2D *h2_osc = (TH2D *)hn_osc->Projection(1, 0);
-      //h2_osc->SetEntries(h2_osc->GetNbinsX() * h2_osc->GetNbinsY());
-      //h2_osc->Draw("colz");
-      //gPad->Update();
-      //printf("h2_osc integral = %f\n", h2_osc->Integral());
-      //c->cd(3);
-      //TH2D *h2_recosc = (TH2D *)hn->Projection(1, 0, "A");
-      //h2_recosc->SetEntries(h2_recosc->GetNbinsX() * h2_recosc->GetNbinsY());
-      //h2_recosc->Draw("colz");
-      //gPad->Update();
-      //printf("h2_recosc integral = %f\n", h2_recosc->Integral());
-      // printf("rate = %f\n", rate);
-
-      //timer->TurnOn();
-      //timer->Reset();
-      //getchar();
-      //timer->TurnOff();
+/*
+ *      TTimer *timer = new TTimer("gSystem->ProcessEvents();", 100, kFALSE);
+ *      TCanvas *c = new TCanvas("c", "c", 1800, 900);
+ *      TH1* hinput = nullptr; TH1* hsurv = nullptr; TH1* hosc = nullptr; TH1* hoscxs = nullptr; TH1* hrecosc = nullptr;
+ *      if (fOscillogram->GetNdimensions() == 1) 
+ *      {
+ *        hinput = im->second->GetTHn()->Projection(0);
+ *        hsurv = fOscillogram->Projection(0);
+ *        hosc = hn_osc->Projection(0);
+ *        hoscxs = hn_osc_xs->Projection(0);
+ *        hrecosc = hn->Projection(0);
+ *      }
+ *      else 
+ *      {
+ *        hinput = im->second->GetTHn()->Projection(1,0); 
+ *        hinput->SetEntries(hinput->GetNbinsX() * hinput->GetNbinsY());
+ *        hsurv = fTmpPDF->Projection(1,0); 
+ *        hsurv->SetEntries(hsurv->GetNbinsX() * hsurv->GetNbinsY());
+ *        hosc = hn_osc->Projection(1,0); 
+ *        hosc->SetEntries(hosc->GetNbinsX() * hosc->GetNbinsY());
+ *        hoscxs = hn_osc_xs->Projection(1,0);
+ *        hoscxs->SetEntries(hoscxs->GetNbinsX() * hoscxs->GetNbinsY());
+ *        hrecosc = hn->Projection(1,0,"A"); 
+ *        hrecosc->SetEntries(hrecosc->GetNbinsX() * hrecosc->GetNbinsY());
+ *      }
+ *      c->Divide(5, 1);
+ *      c->cd(1); hinput->Draw("colz");
+ *      gPad->Update();
+ *      c->cd(2); hsurv->Draw("colz");
+ *      gPad->Update();
+ *      c->cd(3); hosc->Draw("colz");
+ *      gPad->Update();
+ *      printf("hosc integral = %f\n", hosc->Integral());
+ *      c->cd(4); hoscxs->Draw("colz");
+ *      gPad->Update();
+ *      c->cd(5); hrecosc->Draw("colz");
+ *      gPad->Update();
+ *      printf("hrecosc integral = %f\n", hrecosc->Integral());
+ *
+ *      timer->TurnOn();
+ *      timer->Reset();
+ *      getchar();
+ *      timer->TurnOff();
+ */
 
       total_rate = scaling * ch.fNormalization;
 
@@ -582,13 +572,13 @@ namespace mst
 
   THnD *MSPDFBuilderTHn::ComputeOscillationProb(NeutrinoPropagator *propagator, THnD*& oscillogram)
   {
-    // printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n");
-    // printf("Δm12 = %g\n", propagator->GetDeltaMSq21());
-    // printf("Δm23 = %g\n", propagator->GetDeltaMSq32());
-    // printf("sin²θ12 = %g\n", propagator->GetSinSqTheta12());
-    // printf("sin²θ13 = %g\n", propagator->GetSinSqTheta13());
-    // printf("sin²θ23 = %g\n", propagator->GetSinSqTheta23());
-    // getchar();
+    //printf("MSPDFBuilderTHn::CreateOscillogramHD with oscillation parameters:\n");
+    //printf("Δm12 = %g\n", propagator->GetDeltaMSq21());
+    //printf("Δm23 = %g\n", propagator->GetDeltaMSq32());
+    //printf("sin²θ12 = %g\n", propagator->GetSinSqTheta12());
+    //printf("sin²θ13 = %g\n", propagator->GetSinSqTheta13());
+    //printf("sin²θ23 = %g\n", propagator->GetSinSqTheta23());
+    //getchar();
     //
     //  check if axis settings include the nadir angle
     bool nadir_found = false;

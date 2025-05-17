@@ -273,17 +273,17 @@ THn* MSTHnHandler::RebinHist(const THn* hn, const std::vector<int>& iaxis_target
       if (iaxis_target[i] == idim) {
         if ( hn->GetAxis(idim)->GetNbins() % axes_reference[i]->GetNbins() != 0 ) {
           std::cerr << "MSTHnHandler::RebinHist() Error: Incompatible binning for dimension " << idim << std::endl;
-          fprintf(stderr, "target axis [%ld] : %i bins in range [%f, %f]\n", 
-              idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
-          fprintf(stderr, "reference axis [%ld] : %i bins in range [%f, %f]\n", 
-              idim, axes_reference[i]->GetNbins(), axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
+          fprintf(stderr, "%s target axis [%ld] : %i bins in range [%f, %f]\n", 
+              hn->GetName(), idim, hn->GetAxis(idim)->GetNbins(), hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+          fprintf(stderr, "%s reference axis [%ld] : %i bins in range [%f, %f]\n", 
+              axes_reference[i]->GetName(), idim, axes_reference[i]->GetNbins(), axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
           exit(EXIT_FAILURE);
         }
         if ( hn->GetAxis(idim)->GetXmin() != axes_reference[i]->GetXmin() || 
              hn->GetAxis(idim)->GetXmax() != axes_reference[i]->GetXmax() ) {
           std::cerr << "MSTHnHandler::RebinHist() Error: Incompatible axis limits for dimension " << idim << std::endl;
-          fprintf(stderr, "target axis [%ld] : range [%f, %f]\n", idim, hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
-          fprintf(stderr, "reference axis [%ld] : range [%f, %f]\n", idim, axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
+          fprintf(stderr, "%s target axis [%ld] : range [%f, %f]\n", hn->GetName(), idim, hn->GetAxis(idim)->GetXmin(), hn->GetAxis(idim)->GetXmax());
+          fprintf(stderr, "%s reference axis [%ld] : range [%f, %f]\n", axes_reference[i]->GetName(), idim, axes_reference[i]->GetXmin(), axes_reference[i]->GetXmax());
           exit(EXIT_FAILURE);
         }
         rebin_group[idim] = 
