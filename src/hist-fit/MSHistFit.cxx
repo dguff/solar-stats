@@ -669,8 +669,7 @@ namespace mst
               // get rebin target axis 
               std::vector<int> rebin_target_axis;
               for (int i=0; i < hn->GetNdimensions(); i++) rebin_target_axis.push_back(i);
-              int rg = 0;
-              THn* hnrb = internalHandler.RebinHist(hn, rebin_target_axis, internalHandler.GetAxes(), &rg);
+              THn* hnrb = internalHandler.RebinHist(hn, rebin_target_axis, internalHandler.GetAxes());
               delete hn;
               hn = hnrb;
               pdf_->SetTHn(hn);
