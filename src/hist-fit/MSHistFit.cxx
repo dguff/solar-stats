@@ -748,7 +748,9 @@ namespace mst
           mod->SetPullPar(pull.name.GetString());
           mod->SetGaussPar(pull.value["centroid"].GetDouble(),
               pull.value["sigma"].GetDouble());
-          mod->EnablePullRandomization(pull.value["randomize"].GetBool());
+          if (pull.value.HasMember("randomize")) {
+            mod->EnablePullRandomization(pull.value["randomize"].GetBool());
+          }
           fitter->AddModel(mod);
           // initialize and add exponential pulls
         }
