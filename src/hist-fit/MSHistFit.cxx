@@ -1100,9 +1100,9 @@ namespace mst
       poi->FixTo(tVal);
 
       int iengine = 0;
-      for (const auto &step : json["MinimizerSteps"].GetObject())
+      for (const auto &step : json["Minimizer"].GetArray())
       {
-        fitter->Minimize(iengine, step.value["resetMinuit"].GetBool());
+        fitter->Minimize(iengine, false /*step["resetMinuit"].GetBool()*/);
         iengine++;
       }
 
@@ -1135,17 +1135,34 @@ namespace mst
       const double poiFitBestValue = poi->GetFitBestValue();
       const double poiFitBestValueErr = poi->GetFitBestValueErr();
 
-      const double step = 2 * poiFitBestValueErr / double(nPts);
+      const double step = poiFitBestValueErr / double(nPts);
       // scan to the right of the min
       int counter = 0;
-      fitter->SyncFitParameters(true);
-      while (Scan(poiFitBestValue + counter * step) && counter < 10 * nPts)
+      // restore the best fit value of the parameters
+      int parIndex = 0;
+      for (auto it : *fitter->GetParameterMap())
+      {
+        it.second->SetFitStartValue(fitBestValue.at(parIndex));
+        it.second->SetFitBestValueErr(fitBestValueErr.at(parIndex));
+        parIndex++;
+      }
+      fitter->SyncFitParameters(0, false, true);
+      while (Scan(poiFitBestValue + counter * step)/* && counter < 10 * nPts*/)
         counter++;
+
+      // restore the best fit value of the parameters
+      parIndex = 0;
+      for (auto it : *fitter->GetParameterMap())
+      {
+        it.second->SetFitStartValue(fitBestValue.at(parIndex));
+        it.second->SetFitBestValueErr(fitBestValueErr.at(parIndex));
+        parIndex++;
+      }
+    
       // scan to the left of the min starting from -1 to not add again the best fit
       // value in the TGraph
       counter = -1;
-      fitter->SyncFitParameters(true);
-      while (Scan(poiFitBestValue + counter * step) && counter < 10 * nPts)
+      while (Scan(poiFitBestValue + counter * step) /*&& counter < 10 * nPts*/)
         counter--;
 
       // normilize profile to the absolute minimum found during while profiling
@@ -1171,8 +1188,8 @@ namespace mst
     // Set titles (this must be done after filling the TGraph. Probably it's a
     // bug of ROOT
     gpll->SetName(Form("nll_%s", parName.c_str()));
-    gpll->GetXaxis()->SetTitle(Form("%s rate [cts/100T/d]", parName.c_str()));
-    gpll->GetYaxis()->SetTitle("-LogLikelihood)");
+    gpll->GetXaxis()->SetTitle(Form("%s", parName.c_str()));
+    gpll->GetYaxis()->SetTitle("-log(#it{#lambda})");
     gpll->Sort();
     return gpll;
   }
@@ -1457,10 +1474,12 @@ namespace mst
 
       for (const auto &window : json["MC"]["profile1D"].GetArray())
       {
+        double level = (window.HasMember("level")) ?
+                       window["level"].GetDouble() : 5.0;
         TGraph *tmp = Profile(json, fitter,
                               window["par"].GetString(),
-                              5.0,
-                              window["nPoints"].GetInt());
+                              level,
+                              window["npoints"].GetInt());
         cc->cd(iwindow);
         tmp->Draw("apl");
         cc->Update();
@@ -1476,9 +1495,12 @@ namespace mst
       cc->DivideSquare(nWindows);
 
       int iwindow = 1;
+      printf("Drawing %d contours\n", nWindows);
       for (const auto &pair : json["MC"]["contour"].GetArray())
       {
         cc->cd(iwindow);
+        printf("Drawing contour for %s vs %s\n",
+               pair["par1"].GetString(), pair["par2"].GetString());
 
 
         int npoints = (pair.HasMember("npoints")) ? pair["npoints"].GetInt() : 100;
@@ -1486,6 +1508,7 @@ namespace mst
         int ilevel = 0;
         for (const auto &jlevel : pair["level"].GetArray()) 
         {
+          printf("Drawing contour at level %g\n", jlevel.GetDouble());
           TGraph *tmp = GetContour(fitter,
                                    pair["par1"].GetString(),
                                    pair["par2"].GetString(),
@@ -1493,7 +1516,6 @@ namespace mst
                                    npoints);
           tmp->SetName(Form("contour_%s_%s_%g", pair["par1"].GetString(), pair["par2"].GetString(), jlevel.GetDouble()));
           const TString opt = (ilevel == 0) ? "apl" : "pl";
-          printf("Drawing %s with option %s\n", tmp->GetName(), opt.Data());
           tmp->Draw(opt);
           gPad->Modified();
           gPad->Update();
@@ -1502,8 +1524,7 @@ namespace mst
         iwindow++;
       }
     }
-
-      // Return the last created canvas (optional, as all canvases are created independently)
+    // Return the last created canvas (optional, as all canvases are created independently)
     return cc;
   }
 
