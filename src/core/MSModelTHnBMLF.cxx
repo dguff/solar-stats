@@ -35,7 +35,6 @@ namespace mst
          const double par_value = GetMinuitParameter(par, parName);
          const double count_rate = fPDFBuilder->AddHistToPDF(parName, par_value, propagator);
       }
-      //getchar();
       // for (const auto& par_itr : *fParameters) {
       // if (par_itr.second->IsInput()) {
       // const std::string par_name = GetLocalName( par_itr.second->GetName() );
