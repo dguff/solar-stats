@@ -158,11 +158,14 @@ void MSMinimizer::InitializeMinimizer(const int iengine)
    return;
 }
 
-void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
+void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal, bool forceUpdateAll)
 {
+  if (fVerbosity) {
+    printf("MSMinimizer::SyncFitParameters() Minimizer %i - reset %i - force update: %i\n", 
+        iengine, resetParStartVal, forceUpdateAll);
+  }
    // Check whether minuit has been last sync against this minimizer
    // and define value of global pointer
-   bool forceUpdateAll = false;
    //if (global_pointer != this) {
       //forceUpdateAll = true;
       //global_pointer = this;
@@ -207,37 +210,40 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
              << std::endl;
          fMinimizer->FixVariable(d);
        }
-     // otherwise update only changed field
-     } else if (gIt->second->IsFixed()) {
-       if (gIt->second->GetFitStartValue() != lIt->second->GetFitStartValue()) {
-         if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
-           << "par[" << d
-             << "] \"" << gIt->first << "\""
-             << " -> synced starting value"
-             << std::endl;
-         //fMinimizerArglist[0] = d+1;
-         //fMinimizerArglist[1] = gIt->second->GetFitStartValue();
-         //fMinimizer->mnexcm("SET PAR",fMinuitArglist,2, fMinuitErrorFlag);
-         fMinimizer->SetVariableValue(d, gIt->second->GetFitStartValue());
-       }
-       if (!lIt->second->IsFixed()) {
-         if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
-           << "par[" << d
-             << "] \"" << gIt->first << "\""
-             << " -> fixed"
-             << std::endl;
-         //fMinimizerArglist[0] = d+1;
-         //fMinimizer->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
-         fMinimizer->FixVariable(d);
-       }
-       else {
+     } // otherwise, if global parameter is fixed...
+     else if (gIt->second->IsFixed()) {
+       //if (gIt->second->GetFitStartValue() != lIt->second->GetFitStartValue()) {
+         //if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
+           //<< "par[" << d
+             //<< "] \"" << gIt->first << "\""
+             //<< " -> synced starting value"
+             //<< std::endl;
+         ////fMinimizerArglist[0] = d+1;
+         ////fMinimizerArglist[1] = gIt->second->GetFitStartValue();
+         ////fMinimizer->mnexcm("SET PAR",fMinuitArglist,2, fMinuitErrorFlag);
+         //fMinimizer->SetVariableValue(d, gIt->second->GetFitStartValue());
+       //}
+       //if (!lIt->second->IsFixed()) {
+         //if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
+           //<< "par[" << d
+             //<< "] \"" << gIt->first << "\""
+             //<< " -> fixed"
+             //<< std::endl;
+         ////fMinimizerArglist[0] = d+1;
+         ////fMinimizer->mnexcm("FIX", fMinuitArglist , 1, fMinuitErrorFlag);
+         //fMinimizer->FixVariable(d);
+       //}
+       //else {
          if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
            << "par[" << d << "]\"" << gIt->first.data() << "\" -> " 
-           << " -> syncjed fixed parameter" << std::endl;
-         
-         fMinimizer->SetFixedVariable(d, gIt->second->GetName().data(), gIt->second->GetFitStartValue());
-       }
-     } else {
+             << " -> parameter already fixed in local map - update" << std::endl;
+
+         fMinimizer->SetFixedVariable(d, 
+             gIt->second->GetName().data(),
+             gIt->second->GetFitStartValue());
+       //}
+     } 
+     else { // global parameter is not fixed
        if (lIt->second->IsFixed()) {
          if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: "
            << "par[" << d
@@ -249,11 +255,7 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
          fMinimizer->ReleaseVariable(d);
        }
 
-       if ( resetParStartVal ||
-           gIt->second->GetFitStartValue() != lIt->second->GetFitStartValue()||
-           gIt->second->GetFitStartStep()  != lIt->second->GetFitStartStep() ||
-           gIt->second->GetRangeMin()      != lIt->second->GetRangeMin() ||
-           gIt->second->GetRangeMax()      != lIt->second->GetRangeMax() ) {
+       if ( resetParStartVal ) {
          if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: reset "
            << "par[" << d
              << "] \"" << gIt->first << "\""
@@ -277,26 +279,49 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
            fMinimizer->FixVariable(d);
          }
        }
+       else /* if (  
+           gIt->second->GetFitStartValue() != lIt->second->GetFitStartValue()||
+           gIt->second->GetFitStartStep()  != lIt->second->GetFitStartStep() ||
+           gIt->second->GetRangeMin()      != lIt->second->GetRangeMin() ||
+           gIt->second->GetRangeMax()      != lIt->second->GetRangeMax() ) */
+       {
+         if (fVerbosity) std::cerr << "MSMinimizer::SyncFitParameters: update "
+           << "par[" << d
+             << "] \"" << gIt->first << "\""
+             << " -> update value from global map"
+             << std::endl;
+
+         fMinimizer->SetLimitedVariable(d,
+             gIt->second->GetName().data(),
+             gIt->second->GetFitStartValue(),
+             gIt->second->GetFitStartStep(),
+             gIt->second->GetRangeMin(),
+             gIt->second->GetRangeMax());
+
+         if (gIt->second->IsFixed()) {
+           fMinimizer->FixVariable(d);
+         }
+
+       }
      }
    }
 
    // Print current variables settings
-/*
- *   int ipar = 0;
- *   printf("Minimizer %i initial state:\n", iengine);
- *   for (const auto& param : *fGlobalParMap) {
- *    ROOT::Fit::ParameterSettings settings;
- *    fMinimizer->GetVariableSettings(ipar, settings);
- *    printf("par[%s] index: %i, value: %f, step: %f, min: %f, max: %f, fixed: %i\n",
- *           param.first.c_str(), ipar,
- *           settings.Value(), settings.StepSize(),
- *           settings.LowerLimit(), settings.UpperLimit(),
- *           settings.IsFixed());
- *    ipar++;
- *   }
- *
- *   getchar();
- */
+   /*
+    *int ipar = 0;
+    *printf("Minimizer %i initial state:\n", iengine);
+    *for (const auto& param : *fGlobalParMap) {
+    * ROOT::Fit::ParameterSettings settings;
+    * fMinimizer->GetVariableSettings(ipar, settings);
+    * printf("par[%s] index: %i, value: %g, step: %g, min: %g, max: %g, fixed: %i\n",
+    *        param.first.c_str(), ipar,
+    *        settings.Value(), settings.StepSize(),
+    *        settings.LowerLimit(), settings.UpperLimit(),
+    *        settings.IsFixed());
+    * ipar++;
+    *}
+    *getchar();
+    */
 
    // Clear and Make local copy of the gloabal parameter map
    for (MSParameterMap::iterator it = fLocalParMap->begin();
@@ -311,12 +336,18 @@ void MSMinimizer::SyncFitParameters(const int iengine, bool resetParStartVal)
 
 }
 
-void MSMinimizer::Minimize(const int iengine, bool resetFitStartValue) {
+void MSMinimizer::Minimize(const int iengine, bool resetFitStartValue, bool forceUpdateAll) {
    // Sync parameters
    SyncFitParameters(iengine, resetFitStartValue);
    // Run actual minimization
    //fMinimizer->mnexcm(minimizer.c_str(), fMinuitArglist, 2, fMinuitErrorFlag);
    auto& fMinimizer = fMinimizers.at(iengine).fMinimizer;
+   // Dump current state of the minimizer and the parameters
+   if (fVerbosity) {
+     printf("MSMinimizer::Minimize() Minimizer %i state before minimization:\n", iengine);
+     fMinimizer->PrintResults();
+   }
+
    fMinimizer->Minimize();
    fCurrentMinimizer = iengine;
 

@@ -172,11 +172,12 @@ class MSMinimizer : public MSObject
       //! Optionally, do not reset the starting values of the fit parameters and 
       //! leave the  values corresponding to the best fit point found in the 
       //! previous interation
-      void SyncFitParameters(const int iengine, bool resetFitStartValue  = true);
+      void SyncFitParameters(const int iengine, bool resetFitStartValue  = true, bool forceUpdateAll = false);
 
       //! Call the minimizer
       void Minimize(const int iengine = 0, 
-                    bool resetFitStartValue = true);
+                    bool resetFitStartValue = true, 
+                    bool forceUpdateAll = false);
       
       //! Get output status after minuit last call
       int GetMinuitStatus() const { return fMinuitErrorFlag; }
